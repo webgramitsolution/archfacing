@@ -9,7 +9,7 @@ import {
 } from '@/components/dashboard/advertiser-parts'
 import { FilterBar } from '../filter-bar'
 import { CampaignTable } from '../campaign-rows'
-import { NotAnAdvertiser, readListParams, SORTS } from '../list-params'
+import { NotAnAdvertiser, ListPager, readListParams, SORTS } from '../list-params'
 
 export const metadata: Metadata = { title: 'Active Advertisements' }
 export const dynamic = 'force-dynamic'
@@ -23,9 +23,10 @@ export default async function ActiveAdvertisementsPage({
   const user = await requireAuth()
   if (!AD_ROLES.includes(user.role)) return <NotAnAdvertiser />
 
-  const options = readListParams(await searchParams)
+  const sp = await searchParams
+  const options = readListParams(sp)
 
-  const [{ rows }, stats, filters] = await Promise.all([
+  const [{ rows, total }, stats, filters] = await Promise.all([
     listCampaigns(user.id, 'active', options),
     bucketStats(user.id, 'active'),
     filterOptions(user.id),
@@ -117,11 +118,14 @@ export default async function ActiveAdvertisementsPage({
               cta={{ label: 'Create Advertisement', href: '/dashboard/advertisements/create' }}
             />
           ) : (
-            <CampaignTable
-              rows={rows}
-              columns={['placement', 'dates', 'performance', 'spend']}
-              action={(c) => ({ label: 'View Analytics', href: `/dashboard/advertisements/${c.id}` })}
-            />
+            <>
+              <CampaignTable
+                rows={rows}
+                columns={['placement', 'dates', 'performance', 'spend']}
+                action={(c) => ({ label: 'View Analytics', href: `/dashboard/advertisements/${c.id}` })}
+              />
+              <ListPager basePath="/dashboard/advertisements/active" sp={sp} total={total} />
+            </>
           )}
         </div>
 

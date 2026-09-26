@@ -6,10 +6,13 @@ import type { ListOptions } from '@/lib/advertiser'
  * The bits every advertisement list screen needs but none of them owns.
  */
 
+/** Rows per page on every advertisement list. */
+export const LIST_PAGE_SIZE = 10
+
 /** Turns the URL's query string into the options `listCampaigns` takes. */
 export function readListParams(sp: Record<string, string | undefined>): ListOptions {
   const page = Math.max(1, Number(sp.page ?? '1') || 1)
-  const take = 10
+  const take = LIST_PAGE_SIZE
 
   return {
     q: sp.q?.trim() || undefined,
@@ -24,6 +27,61 @@ export function readListParams(sp: Record<string, string | undefined>): ListOpti
     take,
     skip: (page - 1) * take,
   }
+}
+
+/**
+ * Previous / next links under a list.
+ *
+ * The lists always read `?page=` (see readListParams) but never drew a way to
+ * change it, so anything past the first ten campaigns could not be reached.
+ * Every other query parameter — search, filters, sort — is kept on the links.
+ */
+export function ListPager({
+  basePath,
+  sp,
+  total,
+}: {
+  basePath: string
+  sp: Record<string, string | undefined>
+  total: number
+}) {
+  const pages = Math.ceil(total / LIST_PAGE_SIZE)
+  if (pages <= 1) return null
+  const page = Math.min(pages, Math.max(1, Number(sp.page ?? '1') || 1))
+
+  const hrefFor = (p: number) => {
+    const q = new URLSearchParams()
+    for (const [k, v] of Object.entries(sp)) if (v && k !== 'page') q.set(k, v)
+    if (p > 1) q.set('page', String(p))
+    const s = q.toString()
+    return s ? `${basePath}?${s}` : basePath
+  }
+
+  const link =
+    'rounded-card border border-line bg-paper px-3.5 py-2 text-[12.5px] font-semibold text-ink-2 transition-colors hover:border-brand hover:text-brand'
+  const off = 'rounded-card border border-line px-3.5 py-2 text-[12.5px] font-semibold text-ink-4'
+
+  return (
+    <nav aria-label="Pagination" className="mt-4 flex items-center justify-between gap-3">
+      {page > 1 ? (
+        <Link href={hrefFor(page - 1)} className={link}>
+          ← Previous
+        </Link>
+      ) : (
+        <span className={off} aria-disabled="true">← Previous</span>
+      )}
+      <span className="tabular text-[12px] text-ink-3">
+        Page {page} of {pages}
+      </span>
+      {page < pages ? (
+        <Link href={hrefFor(page + 1)} className={link}>
+          Next →
+        </Link>
+      ) : (
+        <span className={off} aria-disabled="true">Next →</span>
+      )}
+    </nav>
+  )
 }
 
 /**

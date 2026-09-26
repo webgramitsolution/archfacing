@@ -74,9 +74,11 @@ const PROFESSIONAL: NavGroup[] = [
        * that pair — see the bottom of this file.
        */
       posting('My Projects', '/dashboard/professional/projects', 'file', '5.2.2', {
-        primary: true, short: 'Projects', one: 'project',
+        primary: true, short: 'Projects', one: 'project', addHref: '/dashboard/professional/projects/new',
       }),
-      posting('My Products', '/dashboard/professional/products', 'box', '5.2.3', { one: 'product' }),
+      posting('My Products', '/dashboard/professional/products', 'box', '5.2.3', {
+        one: 'product', addHref: '/dashboard/professional/products/new',
+      }),
       // Categories and expertise tags live in the profile editor's Business / Basic tabs.
       { label: 'Services Offered', href: '/dashboard/professional/profile/edit?tab=business', icon: 'tag' },
       { label: 'Qualifications', href: '/dashboard/professional/qualifications', ref: '4.3.3.2', icon: 'shield' },
@@ -368,9 +370,10 @@ const EMPLOYEE: NavItem[] = [
 ]
 
 const ADVERTISER: NavItem[] = [
-  { label: 'Overview', href: '/dashboard/advertiser' },
-  { label: 'My Ads', href: '/dashboard/advertisements' },
-  { label: 'My Profile', href: '/dashboard/settings' },
+  { label: 'Overview', href: '/dashboard/advertiser', icon: 'grid', primary: true, short: 'Home' },
+  { label: 'My Ads', href: '/dashboard/advertisements', icon: 'chart', primary: true, short: 'Ads' },
+  { label: 'My Profile', href: '/dashboard/advertiser/profile', icon: 'user', primary: true, short: 'Profile' },
+  { label: 'Settings', href: '/dashboard/settings', icon: 'settings' },
 ]
 
 export const DASHBOARD_NAV: Record<Role, DashboardNav> = {
@@ -405,7 +408,7 @@ function posting(
   href: string,
   icon: NavItem['icon'],
   ref: string,
-  opts: { one: string; primary?: boolean; short?: string }
+  opts: { one: string; primary?: boolean; short?: string; addHref?: string }
 ): NavItem {
   return {
     label,
@@ -416,7 +419,8 @@ function posting(
     ...(opts.short ? { short: opts.short } : {}),
     children: [
       { label: `All ${label.replace(/^My /, '').toLowerCase()}`, href },
-      { label: `Add a ${opts.one}`, href: `${href}#add-new` },
+      // Pages that moved the form to its own `/new` route pass `addHref`.
+      { label: `Add a ${opts.one}`, href: opts.addHref ?? `${href}#add-new` },
     ],
   }
 }

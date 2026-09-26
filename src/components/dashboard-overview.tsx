@@ -2,6 +2,7 @@ import Link from 'next/link'
 import type { Role } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
 import { PageHeading, ComingSoon } from './dashboard-shell'
+import { profilePathFor } from '@/lib/profile-path'
 import { can } from '@/config/permissions'
 import { BUSINESS_RULES } from '@/config/permissions'
 
@@ -131,7 +132,7 @@ export async function DashboardOverview({
         </dl>
 
         <Link
-          href={`/dashboard/${role.toLowerCase().replace('_', '-')}/profile`}
+          href={profilePathFor(role)}
           className="mt-3 inline-block text-[13px] font-medium text-brand hover:underline"
         >
           Complete your profile →

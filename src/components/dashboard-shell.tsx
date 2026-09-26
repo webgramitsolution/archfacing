@@ -9,6 +9,7 @@ import { SignOutButton } from './sign-out-button'
 import { Icon, type IconName } from './ui'
 import { DashboardMobileNav } from './dashboard-mobile-nav'
 import { DashboardSidebar } from './dashboard-sidebar'
+import { profilePathFor } from '@/lib/profile-path'
 
 export type NavItem = {
   label: string
@@ -158,7 +159,7 @@ export async function DashboardShell({
           roleLabel={ROLE_LABEL[user.role]}
           widthClass={SIDEBAR_W}
           profileStrength={strength}
-          profileHref={`/dashboard/${user.role.toLowerCase()}/profile`}
+          profileHref={profilePathFor(user.role)}
         />
 
         {/* ═══════════ everything to the right of it ═══════════ */}

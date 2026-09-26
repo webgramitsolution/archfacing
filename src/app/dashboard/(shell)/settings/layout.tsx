@@ -2,6 +2,7 @@ import Link from 'next/link'
 import { requireAuth } from '@/lib/guard'
 import { Icon } from '@/components/ui'
 import { SettingsMenu } from './settings-menu'
+import { profilePathFor } from '@/lib/profile-path'
 
 /**
  * The Settings shell — the gear header and the left rail that every settings
@@ -12,8 +13,7 @@ import { SettingsMenu } from './settings-menu'
 export default async function SettingsLayout({ children }: { children: React.ReactNode }) {
   const user = await requireAuth()
 
-  const SELLER = ['PROFESSIONAL', 'CONSULTANT', 'BMF', 'CORPORATE']
-  const profileHref = SELLER.includes(user.role) ? `/dashboard/${user.role.toLowerCase()}/profile` : '/dashboard'
+  const profileHref = profilePathFor(user.role)
 
   return (
     <div className="space-y-5">

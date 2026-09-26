@@ -123,9 +123,14 @@ export default async function CampaignDetailPage({
       )}
 
       {/* ═══════════ performance ═══════════ */}
-      {(c.impressions > 0 || c.clicks > 0) && (
+      {/* `#performance` is where "View Analytics" lands — this page's metrics
+          are the campaign's analytics; there is no separate analytics route.
+          So whenever that button is offered the section is drawn, even if a
+          new campaign's real figures are still all zero. */}
+      {(c.impressions > 0 || c.clicks > 0 || allowed.includes('analytics')) && (
         <section
-          className="mb-5 grid gap-3"
+          id="performance"
+          className="mb-5 scroll-mt-4 grid gap-3"
           style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(164px, 1fr))' }}
         >
           <Metric icon="eye" label="Impressions" value={compact(c.impressions)} tone="info" />

@@ -5,7 +5,7 @@ import { listCampaigns, filterOptions } from '@/lib/advertiser'
 import { AdPageHead, AdBanner, NoCampaigns } from '@/components/dashboard/advertiser-parts'
 import { FilterBar } from '../filter-bar'
 import { DraftCard } from '../campaign-rows'
-import { NotAnAdvertiser, readListParams, SORTS } from '../list-params'
+import { NotAnAdvertiser, ListPager, readListParams, SORTS } from '../list-params'
 
 export const metadata: Metadata = { title: 'Draft Advertisements' }
 export const dynamic = 'force-dynamic'
@@ -25,7 +25,8 @@ export default async function DraftAdvertisementsPage({
   const user = await requireAuth()
   if (!AD_ROLES.includes(user.role)) return <NotAnAdvertiser />
 
-  const options = readListParams(await searchParams)
+  const sp = await searchParams
+  const options = readListParams(sp)
 
   const [{ rows, total }, filters] = await Promise.all([
     listCampaigns(user.id, 'drafts', options),
@@ -64,11 +65,14 @@ export default async function DraftAdvertisementsPage({
           cta={{ label: 'Create Advertisement', href: '/dashboard/advertisements/create' }}
         />
       ) : (
-        <ul className="flex flex-col gap-3">
-          {rows.map((c) => (
-            <DraftCard key={c.id} c={c} />
-          ))}
-        </ul>
+        <>
+          <ul className="flex flex-col gap-3">
+            {rows.map((c) => (
+              <DraftCard key={c.id} c={c} />
+            ))}
+          </ul>
+          <ListPager basePath="/dashboard/advertisements/drafts" sp={sp} total={total} />
+        </>
       )}
     </div>
   )

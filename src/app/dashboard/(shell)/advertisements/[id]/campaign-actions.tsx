@@ -21,7 +21,7 @@ import type { CampaignAction } from './permissions'
  * what is about to happen and what it cannot undo.
  */
 
-type Confirm = {
+export type Confirm = {
   title: string
   body: string
   confirmLabel: string
@@ -83,7 +83,7 @@ export function CampaignActions({
 
       {can('analytics') && (
         <Link
-          href={`/dashboard/advertisements/${id}/analytics`}
+          href={`/dashboard/advertisements/${id}#performance`}
           className="flex items-center gap-2 rounded-card border border-line bg-paper px-4 py-2.5 text-[13px] font-semibold text-ink transition-colors hover:border-brand hover:text-brand"
         >
           <Icon name="chart" className="h-4 w-4" />
@@ -254,7 +254,7 @@ function Danger({ label, onClick }: { label: string; onClick: () => void }) {
  * and Escape closes it. The backdrop click cancels, and focus is put on the
  * safe button so a stray Enter does not confirm a deletion.
  */
-function ConfirmDialog({
+export function ConfirmDialog({
   confirm,
   busy,
   error,

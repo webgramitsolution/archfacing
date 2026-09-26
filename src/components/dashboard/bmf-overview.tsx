@@ -444,7 +444,9 @@ export async function BmfOverview({ userId }: { userId: string }) {
 
         {/* ─── top products + pipeline ─── */}
         <div className="grid gap-5 lg:grid-cols-2">
-          <Panel title="My Top Products" action={{ label: 'View All', href: `${base}/products` }}>
+          {/* No "View All": a BMF has no products page (`post:product` is not
+              a BMF permission), so that link was a 404. */}
+          <Panel title="My Top Products">
             {topProducts.length === 0 ? (
               <EmptyRow>
                 Nothing listed yet. The materials you list show up here, ordered

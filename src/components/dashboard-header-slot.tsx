@@ -66,10 +66,10 @@ export async function DashboardHeaderSlot({
 function actionsFor(role: Role, base: string): { label: string; href: string }[] {
   switch (role) {
     case 'CONSULTANT':
-      // The consultant leads with services, then projects — matching the
-      // consultant dashboard reference.
+      // The consultant reference also draws "Post Service", but there is no
+      // service posting on the platform (no route, no model), so only the
+      // project shortcut is offered.
       return [
-        { label: 'Post Service', href: `${base}/services` },
         { label: 'Post Project', href: `${base}/projects` },
       ]
     case 'PROFESSIONAL':

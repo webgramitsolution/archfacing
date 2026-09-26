@@ -6,6 +6,7 @@ import {
 } from '@/components/dashboard/advertiser-parts'
 import type { CampaignView } from '@/lib/advertiser'
 import { cn } from '@/lib/utils'
+import { DraftRowActions } from './draft-row-actions'
 
 /**
  * The two ways a campaign is drawn in a list.
@@ -150,8 +151,7 @@ export function DraftCard({ c }: { c: CampaignView }) {
             Continue Editing
           </Link>
           <DraftAction icon="eye" label="Preview" href={`/dashboard/advertisements/${c.id}`} />
-          <DraftAction icon="file" label="Duplicate" href={`/dashboard/advertisements/${c.id}?duplicate=1`} />
-          <DraftAction icon="alert" label="Delete" href={`/dashboard/advertisements/${c.id}?delete=1`} danger />
+          <DraftRowActions id={c.id} />
         </div>
       </div>
     </li>

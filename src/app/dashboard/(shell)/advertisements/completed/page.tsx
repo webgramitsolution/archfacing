@@ -9,7 +9,7 @@ import {
 } from '@/components/dashboard/advertiser-parts'
 import { FilterBar } from '../filter-bar'
 import { CampaignTable } from '../campaign-rows'
-import { NotAnAdvertiser, readListParams, SORTS } from '../list-params'
+import { NotAnAdvertiser, ListPager, readListParams, SORTS } from '../list-params'
 
 export const metadata: Metadata = { title: 'Completed Advertisements' }
 export const dynamic = 'force-dynamic'
@@ -28,7 +28,8 @@ export default async function CompletedAdvertisementsPage({
   const user = await requireAuth()
   if (!AD_ROLES.includes(user.role)) return <NotAnAdvertiser />
 
-  const options = readListParams(await searchParams)
+  const sp = await searchParams
+  const options = readListParams(sp)
 
   const [{ rows, total }, stats, filters, series] = await Promise.all([
     listCampaigns(user.id, 'completed', options),
@@ -91,6 +92,7 @@ export default async function CompletedAdvertisementsPage({
               <p className="mt-3 text-[12px] text-ink-3">
                 Showing {rows.length} of {total} campaign{total === 1 ? '' : 's'}
               </p>
+              <ListPager basePath="/dashboard/advertisements/completed" sp={sp} total={total} />
             </>
           )}
         </div>
