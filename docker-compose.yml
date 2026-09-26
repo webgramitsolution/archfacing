@@ -1,0 +1,31 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: archfacing-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: archfacing
+      POSTGRES_PASSWORD: archfacing_dev
+      POSTGRES_DB: archfacing
+    ports:
+      - '5432:5432'
+    volumes:
+      - archfacing_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U archfacing']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: archfacing-redis
+    restart: unless-stopped
+    ports:
+      - '6379:6379'
+    volumes:
+      - archfacing_redis:/data
+
+volumes:
+  archfacing_pgdata:
+  archfacing_redis:

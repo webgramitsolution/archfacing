@@ -1,0 +1,2136 @@
+// ArchFacing — Prisma Schema
+// Based on PDF Archfacing.pdf (Reg. L-92657/2020)
+//
+// Usage: place at packages/db/prisma/schema.prisma
+//   npx prisma migrate dev --name init
+//   npx prisma generate
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ENUMS
+// ═══════════════════════════════════════════════════════════
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  ADMIN_SELLER // Merchandise + Podcast only
+  RM_EMPLOYEE
+  CLIENT
+  PROFESSIONAL // Designa or Designi
+  CONSULTANT
+  BMF
+  CORPORATE
+  EXTERNAL_ADVERTISER
+}
+
+/// PDF §3.1.3 — Designa vs Designi
+enum DesignaType {
+  DESIGNA // Architecture
+  DESIGNI // Interior
+}
+
+/// PDF §3.1.3.1–3.1.3.4 — the 4 sub-types of professional
+enum ProfessionalTier {
+  PROFESSIONAL
+  LEGEND
+  INNOVATOR
+  STUDENT // free registration
+}
+
+/// PDF §4.1.5 — the 4 consultant groups
+enum ConsultantGroup {
+  ENGINEERING // 9 sub-categories
+  REAL_ESTATE // 3
+  FINANCIAL // 6
+  INDIAN_TRADITIONAL // 6
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+/// Which service the PACT seat is for
+/// PDF §7.4.2 — Designa/Designi/BMF = 1 seat, Consultant = 24 seats
+enum PactServiceType {
+  DESIGNA
+  DESIGNI
+  CONSULTANT
+  BMF
+  CORPORATE // PDF: "will open later"
+}
+
+enum PactStatus {
+  RESERVED // 15 min payment window
+  ACTIVE
+  EXPIRED // 10 years completed
+  SUSPENDED // cessation §3.1.8.5
+  TRANSFERRED
+}
+
+/// A single Post table handles all content types
+enum PostType {
+  PROJECT
+  PRODUCT
+  AROUND_US
+  ARTISTRY
+  BLOG
+  DESIGN_COMPETITION
+  PODCAST // Admin-Seller
+  MERCHANDISE // Admin-Seller
+  ADVERTISEMENT
+}
+
+enum PostStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+  ARCHIVED
+}
+
+enum EnquiryStatus {
+  NEW
+  ASSIGNED
+  IN_PROGRESS
+  RESPONDED
+  CONVERTED
+  CLOSED
+  UNROUTED // no holder was found for that PACT
+}
+
+/// Where an enquiry originated on the marketplace (§ Leads — enquiry sources).
+enum LeadSourceType {
+  PROJECT
+  PRODUCT
+  PROFESSIONAL
+  CORPORATE
+  BMF
+  CONSULT_NEARBY
+  WEBSITE_FORM
+  RFQ
+  PRODUCT_ENQUIRY
+  SERVICE_ENQUIRY
+  PROJECT_ENQUIRY
+  CONTACT_REQUEST
+  OTHER
+}
+
+/// A single enquiry fans out to one DIRECT recipient (the product/profile
+/// owner) plus zero-or-more PACT recipients (same category + pincode).
+enum LeadRecipientType {
+  DIRECT
+  PACT
+}
+
+/// Per-recipient delivery + engagement trail (§18 delivery tracking).
+enum LeadDeliveryStatus {
+  CREATED
+  QUEUED
+  SENT
+  DELIVERED
+  OPENED
+  RESPONDED
+  CONVERTED
+  /// The recipient closed the lead without converting it.
+  CLOSED
+  FAILED
+}
+
+enum PaymentPurpose {
+  PACT_PURCHASE
+  PACT_RENEWAL
+  REGISTRATION_FEE
+  CLUB_MEMBERSHIP
+  PORTAL_SPACE
+  MERCHANDISE_ORDER
+  ADVERTISEMENT
+  COMPETITION_ENTRY
+  DA_INVOICE // the DA's monthly 20%
+  CLUB_EVENT // a seat at an ArchFacing Club event
+}
+
+enum PaymentStatus {
+  CREATED
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED // §6.1.2.2.6 — maximum 25%
+}
+
+enum MediaType {
+  IMAGE // JPG, 2MB, landscape (§7.10.1)
+  /// §7.10.2 specified MP4 upload, but in its place we take only a link —
+  /// YouTube or Dailymotion. No storage is consumed on the server and
+  /// streaming runs on their bandwidth.
+  VIDEO_LINK
+  PDF // 10MB (§7.10.5)
+  PPT // 10MB (§7.10.4)
+  DOCUMENT // MS Office, 2MB (§7.10.3)
+}
+
+/// Where the video is hosted
+enum VideoHost {
+  YOUTUBE
+  DAILYMOTION
+}
+
+// ═══════════════════════════════════════════════════════════
+//  USERS & PROFILES
+// ═══════════════════════════════════════════════════════════
+
+model User {
+  id             String     @id @default(cuid())
+  /// The member's public ID (e.g. AFH48213) — shown in Edit Profile and as the
+  /// "Artwork ID" on their Artistry posts. Assigned by lib/member-code.ts.
+  memberCode String? @unique
+  /// For now email is the primary identity — the OTP goes to it.
+  /// PDF §4.4 calls mobile the primary; after the website is complete
+  /// mobile OTP will be added and mobile will become required then too.
+  email          String     @unique
+  emailVerified  DateTime?
+  mobile         String?    @unique
+  mobileVerified Boolean    @default(false)
+  passwordHash   String? // for admin/employee
+  role           Role
+  status         UserStatus @default(PENDING_VERIFICATION)
+
+  // Basic details — PDF §4.4.2.1
+  name         String
+  gender       String?
+  dateOfBirth  DateTime?
+  profilePhoto String?
+  logo         String? // §5.2.14 Add Logo
+
+  // Address
+  addressLine String?
+  pincode     String? // this is the basis of the PACT
+  city        String?
+  state       String?
+
+  // Social — §4.4.2.1.7
+  facebookUrl  String?
+  youtubeUrl   String?
+  instagramUrl String?
+  twitterUrl   String?
+  linkedinUrl  String?
+  pinterestUrl String?
+  behanceUrl   String?
+  houzzUrl     String?
+
+  // Storage quota — §4.4 (VII) Portal Spaces
+  /**
+   * /**
+   * /**
+   * The account's public storefront address — `archfacing.com/<sellerSlug>`.
+   * Any account that trades under a name gets one: a Corporate's company
+   * name, a professional's firm name, a BMF's business. It is stored rather
+   * than derived because a public URL has to be stable — deriving it from the
+   * firm name would move every seller's page the day they rename — and unique
+   * because two shops cannot share an address.
+   * Null for accounts with no brand of their own (a client, an employee), and
+   * those simply have no storefront.
+   */
+  sellerSlug String? @unique
+
+  storageQuotaMb Int @default(100)
+  storageUsedMb  Int @default(0)
+
+  // Employee-specific
+  mustChangePassword Boolean   @default(false)
+  department         String?
+  assignedStates     String[] // RM territory
+  assignedPincodes   String[]
+  /// §7.11 Employee HR fields — shown on the Employees admin page
+  employeeCode       String?   @unique
+  designation        String?
+  designationLevel   String? // RM | Employee | Manager | Admin (the role badge)
+  pactCode           String? // e.g. PACT-001
+  workMode           String? // Office | Hybrid | Remote
+  employmentType     String? // Employee | Contract | Intern
+  joinedAt           DateTime?
+  onLeave            Boolean   @default(false)
+  leaveType          String? // Sick | Casual | Annual
+  leaveFrom          DateTime?
+  leaveTo            DateTime?
+
+  /// How this account first reached ArchFacing — Direct, Google Search,
+  /// Social Media, Referral, Advertisement… Used for the visitor/client
+  /// acquisition breakdown. Null for accounts created before it was tracked.
+  acquisitionSource String?
+
+  /// Per-channel notification preferences, shaped
+  /// `{ [notificationKey]: { email, sms, whatsapp, inApp } }`. Null means the
+  /// account has never touched Settings → the code defaults in
+  /// `lib/notification-prefs.ts` apply. Stored as JSON rather than a table
+  /// because it is read and written whole, per user, and never queried across
+  /// users.
+  notificationPrefs Json?
+
+  termsAcceptedAt DateTime?
+  lastLoginAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  professionalProfile ProfessionalProfile?
+  consultantProfile   ConsultantProfile?
+  bmfProfile          BmfProfile?
+  corporateProfile    CorporateProfile?
+  buyerProfile        BuyerProfile?
+  designAssociate     DesignAssociate?
+
+  pacts             Pact[]             @relation("PactHolder")
+  posts             Post[]
+  compEntries       CompetitionEntry[] @relation("EntryDesigner")
+  compReviews       CompetitionEntry[] @relation("EntryReviewer")
+  enquiriesSent     Enquiry[]          @relation("EnquiryClient")
+  enquiriesRecvd    Enquiry[]          @relation("EnquiryHolder")
+  enquiriesMgd      Enquiry[]          @relation("EnquiryEmployee")
+  enquiriesDirect   Enquiry[]          @relation("EnquiryDirect")
+  leadsReceived     LeadRecipient[]    @relation("LeadRecipient")
+  payments          Payment[]
+  memberships       ClubMembership[]
+  subscriptions     Subscription[]
+  clubRegistrations ClubRegistration[]
+  portalSpaces      PortalSpace[]
+  complaintsAbout   Complaint[]        @relation("ComplaintAgainst")
+  complaintsFiled   Complaint[]        @relation("ComplaintBy")
+  orders            Order[]
+  cart              Cart?
+  adBookings        AdBooking[]
+  auditLogs         AuditLog[]
+  notifications     Notification[]
+  savedItems        SavedItem[]
+  recentlyViewed    RecentlyViewed[]
+  reviews           Review[]           @relation("ReviewAuthor")
+  postComments      PostComment[]
+  supportTickets    SupportTicket[]
+  ticketsAssigned   SupportTicket[]    @relation("TicketAssignee")
+  supportReplies    SupportReply[]     @relation("SupportReplyAuthor")
+  profileViewsReceived ProfileView[]  @relation("ProfileViewed")
+  profileViewsMade     ProfileView[]  @relation("ProfileViewer")
+  chatsStarted      Conversation[]     @relation("ChatStarter")
+  chatsReceived     Conversation[]     @relation("ChatOwner")
+  chatMessages      ChatMessage[]      @relation("ChatSender")
+  createdBy         User?              @relation("UserCreator", fields: [createdById], references: [id])
+  createdById       String?
+  createdUsers      User[]             @relation("UserCreator")
+
+  /// Extra admin-module grants on top of the role (src/config/admin-modules.ts).
+  /// Read by requirePermission() — additive only, a grant never removes access.
+  permissions       String[]           @default([])
+  /// Details captured by the admin Add wizards that have no column of their own
+  /// (contacts, preferences, skills, company registration…). Shown on /admin/users/[id].
+  profileExtras     Json?
+  verificationDocs  VerificationDocument[] @relation("DocOwner")
+  docsUploaded      VerificationDocument[] @relation("DocUploader")
+  docsReviewed      VerificationDocument[] @relation("DocReviewer")
+
+  @@index([role, status])
+  @@index([pincode])
+  @@index([state])
+}
+
+/// PDF §4.1.3, §4.1.4 — Designa / Designi
+model ProfessionalProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  designaType DesignaType
+  tier        ProfessionalTier @default(PROFESSIONAL)
+
+  /// §3.1.8.1.1 — COA number is mandatory for an architect
+  coaNumber   String?
+  coaVerified Boolean @default(false)
+
+  firmName   String?
+  experience Int?
+  bio        String?  @db.Text
+  categories String[] // category slugs from §4.1.3 / §4.1.4
+
+  /// Basic Information tab — a one-line intro and the "areas of expertise" tags.
+  shortBio  String?
+  expertise String[]
+
+  /// Contact Details tab — extra reach-out fields + how the pro wants contact.
+  altPhone             String?
+  altEmail             String?
+  officeLandline       String?
+  mapsLocation         String?
+  whatsappNumber       String?
+  preferredContactTime String?
+  allowCalls           Boolean @default(true)
+  allowEmails          Boolean @default(true)
+  allowWhatsapp        Boolean @default(true)
+  showPhonePublic      Boolean @default(true)
+  showEmailPublic      Boolean @default(true)
+
+  /// Social Links tab — platform keys the pro has toggled OFF (hidden from the
+  /// public profile). Empty = every link with a URL is shown.
+  socialHidden String[]
+
+  /// Business Information tab (Profile & Portfolio editor) — the company facts
+  /// a professional/firm shows on their public profile.
+  businessType    String? // Individual | Proprietorship | Partnership | LLP | Private Limited | Public Limited | Other
+  yearEstablished Int?
+  employeeCount   String? // "1 - 10", "11 - 50", …
+  tagline         String?
+  businessEmail   String?
+  website         String?
+  serviceAreas    String[] // cities / regions the firm serves
+
+  /// Displayed profession type on the admin Professionals page — Architect,
+  /// Interior Designer, Civil Engineer, Contractor, Landscape Designer, etc.
+  professionType String?
+  isFeatured     Boolean @default(false)
+
+  /// Student-only (tier = STUDENT) fields for the admin Students page.
+  studentId    String? @unique
+  studentYear  String? // "1st Year", "2nd Year", …
+  studentLevel String? // Undergraduate | Postgraduate | Diploma | Other
+
+  isVerified   Boolean   @default(false)
+  verifiedAt   DateTime?
+  verifiedById String?
+
+  qualifications Qualification[]
+
+  @@index([designaType, tier])
+  @@index([isVerified])
+}
+
+/// PDF §4.1.5 — 24 sub-categories
+model ConsultantProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  group       ConsultantGroup
+  subCategory String // e.g. "civil_engineer", "astrologer"
+
+  firmName      String?
+  experience    Int?
+  bio           String? @db.Text
+  licenseNumber String?
+
+  isVerified Boolean   @default(false)
+  verifiedAt DateTime?
+
+  qualifications Qualification[]
+
+  @@index([group, subCategory])
+}
+
+/// PDF §4.1.6, §3.1.8.1.3 — only Designa/Designi holders can become BMF
+model BmfProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  designaType       DesignaType // required for eligibility
+  businessName      String
+  gstNumber         String?
+  productCategories String[] // slugs from §4.1.7.1
+  commissionRate    Decimal?    @db.Decimal(5, 2)
+
+  isVerified Boolean @default(false)
+}
+
+/// PDF §4.5 — Corporate
+model CorporateProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  companyName       String
+  gstNumber         String
+  panNumber         String
+  incorporationDate DateTime?
+  companyLogo       String?
+  website           String?
+  productCategories String[] // for the brand logo panel
+
+  /// §3.1.6 — corporates get a variable number of free postings
+  freePostingsTotal Int @default(10)
+  freePostingsUsed  Int @default(0)
+
+  isVerified Boolean @default(false)
+}
+
+/// A Buyer / Client account's extended profile — powers the "Buyers / Clients"
+/// admin page. A CLIENT user is either an INDIVIDUAL buyer or a COMPANY client;
+/// the company fields are only filled for the latter. Orders and RFQs are cached
+/// counters shown in the table (source of truth stays Order / Enquiry).
+model BuyerProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  accountType String  @default("INDIVIDUAL") // INDIVIDUAL | COMPANY
+  buyerType   String? // Regular | Premium | Corporate Representative
+  industry    String?
+
+  // Company details (COMPANY only)
+  companyName         String?
+  tradeName           String?
+  gstNumber           String?
+  panNumber           String?
+  companyType         String? // Private Limited | LLP | Partnership | Proprietorship …
+  companySize         String?
+  annualTurnover      String?
+  website             String?
+  yearEstablished     String?
+  businessDescription String?
+
+  // Preferences
+  productCategories   String[]
+  buyingPurpose       String? // Own Use | Resale | Projects | Multiple
+  orderValueRange     String?
+  preferredBrands     String[]
+  specialRequirements String?
+
+  // Contact / billing
+  billingAddress String?
+
+  // Relationship
+  assignedRm  String? // RM name / code
+  pactArea    String?
+  ordersCount Int     @default(0)
+  rfqsCount   Int     @default(0)
+
+  // Verification queue — PENDING | UNDER_REVIEW | VERIFIED | REJECTED
+  verificationStatus String    @default("PENDING")
+  documentsCount     Int       @default(0)
+  submittedAt        DateTime?
+
+  isVerified Boolean @default(false)
+}
+
+/// PDF §3.1.7 — Design Associate
+model DesignAssociate {
+  id     String @id @default(cuid())
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// §8.2 — firstname + PACT@gmail.com
+  daEmail String @unique
+  daCode  String @unique // "Name + PACT" reference code
+
+  /**
+   * The public address of this associate — `/designers-associates/<slug>`.
+   * A column rather than something derived at render time, because a public
+   * URL has to be stable: deriving it from the firm name would move the page
+   * the day the firm is renamed, and deriving it from `daCode` would put
+   * "yudhveer110005" in front of clients. Set once when the registration is
+   * approved, and unique so two associates can never collide.
+   */
+  slug String? @unique
+
+  /// §3.1.7.9 — KYC required
+  kycVerified  Boolean @default(false)
+  kycDocuments Json? // encrypted
+  panNumber    String?
+  gstNumber    String?
+
+  /// §3.1.7.7 — 80% DA, 20% ArchFacing
+  revenueShare Decimal @default(80.00) @db.Decimal(5, 2)
+
+  /// §3.1.7.10.1 — 10 years free club membership
+  clubValidTill DateTime?
+
+  approvedAt   DateTime?
+  approvedById String?
+  createdAt    DateTime  @default(now())
+
+  invoices DaInvoice[]
+}
+
+/// PDF §4.3.3.2 — from 10th up to PhD
+model Qualification {
+  id             String  @id @default(cuid())
+  level          String // TENTH | TWELFTH | GRADUATION | POST_GRADUATION | PHD | PROFESSIONAL_MEMBERSHIP
+  boardOrUniv    String
+  state          String
+  passingYear    Int
+  membershipNo   String?
+  certificateUrl String?
+
+  professionalProfileId String?
+  professionalProfile   ProfessionalProfile? @relation(fields: [professionalProfileId], references: [id], onDelete: Cascade)
+  consultantProfileId   String?
+  consultantProfile     ConsultantProfile?   @relation(fields: [consultantProfileId], references: [id], onDelete: Cascade)
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PACT — the heart of the platform
+// ═══════════════════════════════════════════════════════════
+
+/// PDF §3.1.8 — PIN Area Code Territory
+model Pact {
+  id String @id @default(cuid())
+
+  pincode String
+  state   String
+  city    String?
+
+  serviceType PactServiceType
+  /// Filled in only for CONSULTANT (which one out of the 24)
+  /// For the rest keep "-" so that the unique constraint works
+  subCategory String          @default("-")
+
+  holderId String?
+  holder   User?   @relation("PactHolder", fields: [holderId], references: [id])
+
+  status PactStatus @default(RESERVED)
+
+  /// §3.1.8 — 10 years
+  purchasedAt  DateTime?
+  expiresAt    DateTime?
+  /// The 15-min TTL of RESERVED
+  reservedTill DateTime?
+
+  price     Decimal? @db.Decimal(10, 2)
+  paymentId String?  @unique
+
+  /// §3.1.8.5 — cessation tracking
+  complaintCount   Int       @default(0)
+  lastResponseAt   DateTime?
+  suspendedAt      DateTime?
+  suspensionReason String?
+
+  /// transfer history
+  transferredFromId  String?
+  transferApprovedBy String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  enquiries      Enquiry[]
+  leadRecipients LeadRecipient[]
+
+  /// ★ The most important constraint of all — one PIN + service + sub-category only once
+  ///
+  ///   This is deliberately NOT an @@unique. Prisma's @@unique would apply to every row,
+  ///   which would let an EXPIRED/SUSPENDED PACT block that seat forever.
+  ///   We must block only on RESERVED/ACTIVE — that is why the partial index
+  ///   is written by hand in migration 20260826180000_pact_active_unique:
+  ///
+  ///     CREATE UNIQUE INDEX pact_seat_taken_unique
+  ///       ON "Pact"(pincode, "serviceType", "subCategory")
+  ///       WHERE status IN ('RESERVED','ACTIVE');
+  ///
+  ///   ⚠️ NEVER turn this into an @@unique — the seat would be blocked forever.
+  @@index([holderId, status])
+  @@index([pincode, serviceType])
+  @@index([status, expiresAt])
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CONTENT — one Post table, many types
+// ═══════════════════════════════════════════════════════════
+
+model Post {
+  id     String     @id @default(cuid())
+  type   PostType
+  status PostStatus @default(PENDING_REVIEW)
+
+  authorId String
+  author   User   @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  title       String
+  slug        String @unique
+  /// PDF: a 200-word limit in most forms
+  description String @db.Text
+
+  category    String
+  subCategory String?
+  /// The third level (PDF tertiary) — a child of subCategory in the Category tree.
+  tertiaryCategory String?
+
+  /// For filters — §6.1.3.x
+  pincode String?
+  city    String?
+  state   String?
+  /// "Introducing Year" — present in every filter
+  year    Int?
+
+  /// type-specific fields (project area, prize money, product price…)
+  meta Json?
+
+  /// Design Competition fields — §5.2.4.1.2
+  prizeMoney           Decimal?  @db.Decimal(12, 2)
+  submissionDeadline   DateTime?
+  juryRequired         Int?
+  needsDesignAssociate Boolean   @default(false)
+  visibleToDesigna     Boolean   @default(true)
+  visibleToDesigni     Boolean   @default(true)
+  /// Set when the owner picks a winner. The winning entry itself carries
+  /// status = WINNER; this is the "results are out" flag the public page reads.
+  winnerAnnouncedAt    DateTime?
+
+  /// Around Us — §5.2.4.1
+  isPaidCategory Boolean   @default(false)
+  eventDate      DateTime?
+  venue          String?
+  entryFee       Decimal?  @db.Decimal(10, 2)
+  attendeeCount  Int?
+  reportedBy     String?
+  writtenBy      String?
+  referenceUrl   String?
+
+  viewCount Int     @default(0)
+  featured  Boolean @default(false) // Featured Projects toggle (admin CMS)
+
+  /// moderation
+  reviewedById    String?
+  reviewedAt      DateTime?
+  rejectionReason String?
+
+  publishedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  deletedAt   DateTime?
+
+  media    Media[]
+  variants MerchandiseVariant[]
+  entries  CompetitionEntry[]
+  savedBy  SavedItem[]
+  viewedBy RecentlyViewed[]
+  reviews  Review[]
+  comments PostComment[]
+  chats    Conversation[]
+
+  @@index([type, status, publishedAt])
+  @@index([authorId, type])
+  @@index([category, subCategory])
+  @@index([state, year])
+  @@index([pincode])
+}
+
+/// PDF §7.10 — the upload rules
+model Media {
+  id   String    @id @default(cuid())
+  type MediaType
+
+  /// The file URL for IMAGE/PDF/PPT/DOC;
+  /// the canonical watch URL for VIDEO_LINK
+  url          String
+  thumbnailUrl String?
+
+  /// ─── uploaded files ───
+  /// The key it sits under in storage — needed when deleting
+  storageKey String?
+  fileName   String
+  /// What this file is on the form that produced it — "Project plan" on a
+  /// design competition, for instance. Null on the ordinary upload, which
+  /// needs no distinguishing.
+  label      String?
+  mimeType   String
+  sizeBytes  Int     @default(0)
+  width      Int?
+  height     Int?
+
+  /// ─── VIDEO_LINK ───
+  videoHost VideoHost?
+  videoId   String?
+  embedUrl  String?
+
+  sortOrder Int @default(0)
+
+  postId String?
+  post   Post?   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  /// A file belongs either to a Post or to a competition entry, never both.
+  entryId String?
+  entry   CompetitionEntry? @relation(fields: [entryId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([postId, sortOrder])
+  @@index([entryId, sortOrder])
+}
+
+// ═══════════════════════════════════════════════════════════
+//  DESIGN COMPETITION ENTRIES
+//
+//  The PDF (§5.2.7) specifies only the posting side of a
+//  competition: an owner announces one, with prize money, a
+//  deadline and a jury count. What it never writes down is the
+//  half that makes it a competition — designers answering the
+//  brief, someone judging them, and a winner taking the prize.
+//  That is what this model carries.
+// ═══════════════════════════════════════════════════════════
+
+enum CompetitionEntryStatus {
+  SUBMITTED
+  SHORTLISTED
+  REJECTED
+  WINNER
+}
+
+model CompetitionEntry {
+  id String @id @default(cuid())
+
+  /// The competition being answered — a Post of type DESIGN_COMPETITION
+  competitionId String
+  competition   Post   @relation(fields: [competitionId], references: [id], onDelete: Cascade)
+
+  /// The designer answering it
+  designerId String
+  designer   User   @relation("EntryDesigner", fields: [designerId], references: [id], onDelete: Cascade)
+
+  title   String
+  /// The design concept, held to the same 200-word limit as every other form
+  concept String @db.Text
+
+  status CompetitionEntryStatus @default(SUBMITTED)
+
+  /// ─── judging ───
+  /// Out of 100. Null until someone scores it.
+  score        Int?
+  remarks      String?   @db.Text
+  reviewedById String?
+  reviewedBy   User?     @relation("EntryReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+
+  submittedAt DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  withdrawnAt DateTime?
+
+  media Media[]
+
+  /// One entry per designer per competition — a designer revises their entry
+  /// rather than stacking up several.
+  @@unique([competitionId, designerId])
+  @@index([competitionId, status])
+  @@index([designerId, submittedAt])
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ENQUIRIES — the lead engine of Consult Nearby
+// ═══════════════════════════════════════════════════════════
+
+model Enquiry {
+  id String @id @default(cuid())
+
+  clientId String
+  client   User   @relation("EnquiryClient", fields: [clientId], references: [id])
+
+  /// Which PACT it was routed to
+  pactId   String?
+  pact     Pact?   @relation(fields: [pactId], references: [id])
+  holderId String?
+  holder   User?   @relation("EnquiryHolder", fields: [holderId], references: [id])
+
+  /// When unrouted, an RM Employee assigns it manually
+  employeeId String?
+  employee   User?   @relation("EnquiryEmployee", fields: [employeeId], references: [id])
+
+  /// §4.1.2 — the client selects PIN + category + sub-category
+  pincode     String
+  serviceType PactServiceType
+  subCategory String?
+
+  /// ─── Marketplace source (§2) — where the enquiry originated ───
+  sourceType LeadSourceType @default(CONSULT_NEARBY)
+  /// The Post/User id the enquiry came from (product/project/profile), if any
+  sourceId   String?
+  sourceUrl  String?
+  /// Display category slug (product/project category) — for filtering & display
+  category   String?
+  city       String?
+  state      String?
+
+  /// ─── The DIRECT recipient (§3) — the product/profile owner. Receives the
+  ///     lead even without a PACT. Never replaces the PACT recipients. ───
+  directRecipientId String?
+  directRecipient   User?   @relation("EnquiryDirect", fields: [directRecipientId], references: [id])
+
+  subject      String
+  message      String   @db.Text
+  budget       Decimal? @db.Decimal(12, 2)
+  contactName  String
+  contactPhone String
+  contactEmail String?
+
+  status      EnquiryStatus @default(NEW)
+  respondedAt DateTime?
+  closedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  responses  EnquiryResponse[]
+  recipients LeadRecipient[]
+
+  @@index([holderId, status, createdAt])
+  @@index([clientId, createdAt])
+  @@index([status, pincode])
+  @@index([employeeId, status])
+  @@index([sourceType, sourceId])
+  @@index([category, pincode])
+  @@index([directRecipientId, status])
+  @@index([status, createdAt])
+}
+
+/// §7 — the routing/recipient structure. One row per (enquiry, recipient):
+/// the DIRECT owner and every matched PACT holder each get their own row,
+/// with an explicit routing reason and an independent delivery trail. The
+/// unique (enquiryId, recipientId) is the idempotency / duplicate guard (§20).
+model LeadRecipient {
+  id        String  @id @default(cuid())
+  enquiryId String
+  enquiry   Enquiry @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+
+  recipientId String
+  recipient   User   @relation("LeadRecipient", fields: [recipientId], references: [id])
+
+  type          LeadRecipientType
+  /// Human-readable why, e.g. "Same Category + Pincode" (§8)
+  routingReason String?
+
+  /// For PACT recipients — which PACT seat matched
+  pactId String?
+  pact   Pact?   @relation(fields: [pactId], references: [id])
+
+  category String?
+  pincode  String?
+
+  deliveryStatus LeadDeliveryStatus @default(CREATED)
+  sentAt         DateTime?
+  deliveredAt    DateTime?
+  openedAt       DateTime?
+  respondedAt    DateTime?
+  convertedAt    DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// §20 — the same enquiry never routes to the same user twice
+  @@unique([enquiryId, recipientId])
+  @@index([recipientId, deliveryStatus, createdAt])
+  @@index([enquiryId, type])
+  @@index([pactId])
+  @@index([type, deliveryStatus])
+}
+
+model EnquiryResponse {
+  id          String   @id @default(cuid())
+  enquiryId   String
+  enquiry     Enquiry  @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  senderId    String
+  message     String   @db.Text
+  attachments String[]
+  createdAt   DateTime @default(now())
+
+  @@index([enquiryId, createdAt])
+}
+
+/// §3.1.8.5 — cessation at 5 complaints
+model Complaint {
+  id        String  @id @default(cuid())
+  againstId String
+  against   User    @relation("ComplaintAgainst", fields: [againstId], references: [id])
+  byId      String
+  by        User    @relation("ComplaintBy", fields: [byId], references: [id])
+  pactId    String?
+
+  reason  String
+  details String @db.Text
+  status  String @default("OPEN") // OPEN | UNDER_REVIEW | RESOLVED | DISMISSED
+
+  /// PDF: all complaints go to the Design Cell
+  reviewedById String?
+  resolution   String?   @db.Text
+  resolvedAt   DateTime?
+  createdAt    DateTime  @default(now())
+
+  @@index([againstId, status])
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PAYMENTS & COMMERCE
+// ═══════════════════════════════════════════════════════════
+
+model Payment {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  purpose PaymentPurpose
+  status  PaymentStatus  @default(CREATED)
+
+  amount      Decimal @db.Decimal(12, 2)
+  taxAmount   Decimal @default(0) @db.Decimal(12, 2)
+  totalAmount Decimal @db.Decimal(12, 2)
+  currency    String  @default("INR")
+
+  razorpayOrderId   String? @unique
+  razorpayPaymentId String? @unique
+  razorpaySignature String?
+
+  /// §6.1.2.2.6 — maximum 25% refund, within 15 days
+  refundedAmount Decimal   @default(0) @db.Decimal(12, 2)
+  refundedAt     DateTime?
+  refundReason   String?
+
+  /// What it is for (pactId, orderId, membershipId…)
+  referenceId String?
+  metadata    Json?
+
+  invoiceNumber String?   @unique
+  paidAt        DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([userId, purpose, status])
+  @@index([status, createdAt])
+}
+
+/// §5.2.10, §7.4.3
+model ClubMembership {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  planName  String
+  price     Decimal  @db.Decimal(10, 2)
+  startsAt  DateTime
+  expiresAt DateTime
+  /// A DA gets it free for 10 years
+  isFree    Boolean  @default(false)
+  paymentId String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
+}
+
+/// §5.2.9 — for 5 years, non-refundable
+model PortalSpace {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  extraMb     Int
+  price       Decimal  @db.Decimal(10, 2)
+  purchasedAt DateTime @default(now())
+  expiresAt   DateTime // +5 years
+  paymentId   String?
+
+  /// When the cron reclaimed this space — null means it is still outstanding.
+  /// ⚠️ This very field is what lets expiry run only once. Without it the cron
+  ///    would keep subtracting the same MB every night and the quota would drain away.
+  reclaimedAt DateTime?
+
+  @@index([userId, expiresAt])
+  @@index([expiresAt, reclaimedAt])
+}
+
+/// §3.1.7.6 — AF raises the invoice, the DA realises the payment
+model DaInvoice {
+  id   String          @id @default(cuid())
+  daId String
+  da   DesignAssociate @relation(fields: [daId], references: [id])
+
+  invoiceNumber String  @unique
+  projectRef    String?
+  clientName    String
+
+  grossAmount Decimal @db.Decimal(12, 2)
+  /// 80% back to the DA
+  daShare     Decimal @db.Decimal(12, 2)
+  /// 20% ArchFacing
+  afShare     Decimal @db.Decimal(12, 2)
+  taxAmount   Decimal @default(0) @db.Decimal(12, 2)
+
+  /// §3.1.7.6 f — invoice on the 1st of every month, payment by the end of the month
+  issuedOn DateTime
+  dueOn    DateTime
+  paidOn   DateTime?
+  status   String    @default("ISSUED") // ISSUED | PAID | OVERDUE
+
+  createdAt DateTime @default(now())
+
+  @@index([daId, status])
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MERCHANDISE E-COMMERCE (Admin-Seller panel)
+// ═══════════════════════════════════════════════════════════
+
+model Order {
+  id          String @id @default(cuid())
+  orderNumber String @unique
+  userId      String
+  user        User   @relation(fields: [userId], references: [id])
+
+  subtotal Decimal @db.Decimal(12, 2)
+  shipping Decimal @default(0) @db.Decimal(10, 2)
+  tax      Decimal @default(0) @db.Decimal(10, 2)
+  /// Coupon discount taken off the total (0 when none)
+  discount   Decimal @default(0) @db.Decimal(10, 2)
+  couponCode String?
+  total    Decimal @db.Decimal(12, 2)
+
+  status OrderStatus @default(PENDING)
+
+  shippingName    String
+  shippingPhone   String
+  shippingAddress String
+  shippingPincode String
+  shippingCity    String
+  shippingState   String
+
+  paymentId      String?
+  trackingNumber String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  items OrderItem[]
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+model OrderItem {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  /// The Post whose type = MERCHANDISE
+  postId    String
+  /// ★ Which size/colour was sold — stock is returned through this when an order is cancelled.
+  ///   Even if the Variant is deleted later, the order's record must survive,
+  ///   which is why no foreign key is kept here.
+  variantId String
+  /// The price and name at that moment — so the bill stays the same even if the catalogue changes later
+  title     String
+  variant   String?
+  sku       String?
+
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  lineTotal Decimal @db.Decimal(10, 2)
+
+  @@index([variantId])
+  @@index([postId])
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SYSTEM
+// ═══════════════════════════════════════════════════════════
+
+/// §7.11.1.1 — so that admin can add/edit/delete categories
+model Category {
+  id          String   @id @default(cuid())
+  type        PostType
+  slug        String
+  name        String
+  nameHindi   String?
+  description String?
+  icon        String?
+  sortOrder   Int      @default(0)
+  isActive    Boolean  @default(true)
+
+  /// §7.11.1.2 — custom input fields for the category
+  customFields Json?
+
+  parentId String?
+  parent   Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryTree")
+
+  @@unique([type, slug])
+  @@index([type, parentId, sortOrder])
+}
+
+/// ═══════════════════════════════════════════════════════════
+///  MESSAGES — the direct chat between two members.
+///
+///  Deliberately SEPARATE from `Enquiry`/`LeadRecipient`: a lead is routed
+///  business, a conversation is two people talking. A chat is started from a
+///  post's "Chat Now" / "Contact" button (Artistry and Around Us today) and is
+///  keyed to that post, so the thread always knows what it is about.
+/// ═══════════════════════════════════════════════════════════
+model Conversation {
+  id String @id @default(cuid())
+
+  /// The two sides. `starter` opened it, `owner` is the post's author.
+  starterId String
+  starter   User   @relation("ChatStarter", fields: [starterId], references: [id], onDelete: Cascade)
+  ownerId   String
+  owner     User   @relation("ChatOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  /// What the chat is about — the post whose Chat button opened it.
+  /// Null only if a chat is ever started outside a post.
+  postId String?
+  post   Post?   @relation(fields: [postId], references: [id], onDelete: SetNull)
+  /// Copied so the list can show the subject without loading the post.
+  subject String
+  /// ARTISTRY | AROUND_US | … — which surface it came from.
+  source  String  @default("ARTISTRY")
+
+  /// Archived per side, so one person filing a chat away does not hide it
+  /// from the other.
+  starterArchived Boolean @default(false)
+  ownerArchived   Boolean @default(false)
+
+  lastMessageAt DateTime @default(now())
+  createdAt     DateTime @default(now())
+
+  messages ChatMessage[]
+
+  /// One conversation per (starter, owner, post) — clicking Chat again
+  /// re-opens the existing thread instead of making a second one.
+  @@unique([starterId, ownerId, postId])
+  @@index([ownerId, lastMessageAt])
+  @@index([starterId, lastMessageAt])
+}
+
+model ChatMessage {
+  id             String       @id @default(cuid())
+  conversationId String
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       String
+  sender         User         @relation("ChatSender", fields: [senderId], references: [id], onDelete: Cascade)
+  body           String
+  readAt         DateTime?
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, createdAt])
+}
+
+/// A help-desk ticket a member raises from Help & Support. Kept simple: the
+/// member's subject, category and message, and a status the support team moves
+/// through. The reply thread can be added later; this is the record the "Create
+/// Support Ticket" form writes and "My Tickets" lists.
+model SupportTicket {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  subject   String
+  category  String   @default("general")
+  message   String
+  /// OPEN | IN_PROGRESS | RESOLVED | CLOSED
+  status    String   @default("OPEN")
+  /// LOW | NORMAL | HIGH | URGENT — set by staff
+  priority   String  @default("NORMAL")
+  /// The staff member handling it
+  assigneeId String?
+  assignee   User?   @relation("TicketAssignee", fields: [assigneeId], references: [id])
+  replies    SupportReply[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+/// One message in a support conversation — from the member or from staff.
+model SupportReply {
+  id        String        @id @default(cuid())
+  ticketId  String
+  ticket    SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User          @relation("SupportReplyAuthor", fields: [authorId], references: [id])
+  /// true when written by ArchFacing staff
+  isStaff   Boolean       @default(false)
+  body      String        @db.Text
+  createdAt DateTime      @default(now())
+
+  @@index([ticketId, createdAt])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String // NEW_ENQUIRY | PACT_EXPIRING | PAYMENT_SUCCESS | POST_APPROVED …
+  title     String
+  body      String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+  action     String // USER_SUSPENDED | PACT_TRANSFERRED | POST_APPROVED …
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  ipAddress  String?
+  device     String? // Windows | Mac | Mobile | Linux — for the User Activity log
+  status     String   @default("SUCCESS") // SUCCESS | FAILED | PENDING
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+  @@index([action, createdAt])
+}
+
+/// §7.11.1.9, §7.11.1.12 — so that admin can change the menu/footer/header layout
+model SiteSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+enum OtpChannel {
+  EMAIL // this is the one live right now — via Hostinger SMTP
+  SMS // after the website is complete
+}
+
+model OtpRequest {
+  id            String     @id @default(cuid())
+  /// email address or mobile number — the channel tells which one
+  identifier    String
+  channel       OtpChannel @default(EMAIL)
+  codeHash      String
+  purpose       String // REGISTRATION | LOGIN | EMAIL_CHANGE | MOBILE_CHANGE
+  attempts      Int        @default(0)
+  expiresAt     DateTime
+  usedAt        DateTime?
+  /// The token created once the OTP checks out — the session is built from it
+  verifiedToken String?
+  ipAddress     String?
+  createdAt     DateTime   @default(now())
+
+  @@index([identifier, purpose, createdAt])
+  @@index([verifiedToken])
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PINCODE MASTER — the basis of PACT
+// ═══════════════════════════════════════════════════════════
+
+/// All postal PIN codes of India (from GeoNames, ~19,200)
+/// PACT rests on this — every PIN is a territory.
+model Pincode {
+  code       String   @id // 6 digits
+  district   String
+  state      String
+  /// The main localities that fall inside this PIN — useful in search
+  localities String[]
+  /// For finding a "nearby PIN" (Phase 4 lead routing)
+  lat        Float?
+  lng        Float?
+
+  @@index([state, district])
+  @@index([district])
+}
+
+/// §3.1.8.4 — "Charges will be decided by Archfacing and revised time to time"
+/// So the prices are not hard-coded in the code; they live in the DB and admin can change them.
+model PactPrice {
+  id          String          @id @default(cuid())
+  serviceType PactServiceType
+
+  /// A special price for this state; null = the default for all states
+  state String?
+
+  /// The price of buying a new PACT
+  price        Decimal  @db.Decimal(10, 2)
+  /// §3.1.8 — the recharge price after 10 years
+  renewalPrice Decimal? @db.Decimal(10, 2)
+  /// GST and the like
+  taxPercent   Decimal  @default(18) @db.Decimal(5, 2)
+
+  isActive    Boolean  @default(true)
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([serviceType, state])
+  @@index([serviceType, isActive])
+}
+
+// ═══════════════════════════════════════════════════════════
+//  COMMERCE — §9.10, §9.11 (Merchandise and e-commerce)
+// ═══════════════════════════════════════════════════════════
+
+enum OrderStatus {
+  PENDING // created from the cart, payment still pending
+  PAID
+  PACKED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+/**
+ * Every sellable form of a Merchandise item — size/colour and so on.
+ * The catalogue entry is the `Post` (type = MERCHANDISE); price and stock
+ * live here. The S/M/L of the same t-shirt are separate rows, so
+ * stock is counted separately for each size.
+ */
+model MerchandiseVariant {
+  id     String @id @default(cuid())
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  /// The seller's own code
+  sku   String  @unique
+  /// "M / Blue" — if empty there is only one form
+  label String?
+
+  price      Decimal  @db.Decimal(10, 2)
+  /// The struck-through price shown alongside
+  mrp        Decimal? @db.Decimal(10, 2)
+  taxPercent Decimal  @default(12) @db.Decimal(5, 2)
+
+  stock      Int @default(0)
+  /// Warn the admin once only this much is left
+  lowStockAt Int @default(3)
+
+  weightGrams Int?
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  cartItems CartItem[]
+
+  @@index([postId, isActive])
+}
+
+/// One cart per user — login is required
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  updatedAt DateTime   @updatedAt
+  createdAt DateTime   @default(now())
+}
+
+model CartItem {
+  id        String             @id @default(cuid())
+  cartId    String
+  cart      Cart               @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  variantId String
+  variant   MerchandiseVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+  quantity  Int                @default(1)
+  addedAt   DateTime           @default(now())
+
+  /// Adding the same item again does not create a new row; the quantity goes up
+  @@unique([cartId, variantId])
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CLUB MEMBERSHIP — §5.2.10, §9.1
+// ═══════════════════════════════════════════════════════════
+
+model ClubPlan {
+  id           String   @id @default(cuid())
+  slug         String   @unique
+  name         String
+  tagline      String?
+  months       Int
+  price        Decimal  @db.Decimal(10, 2)
+  taxPercent   Decimal  @default(18) @db.Decimal(5, 2)
+  /// What all this plan includes
+  benefits     String[]
+  /// The roles that can get this plan — empty = everyone
+  allowedRoles String[]
+  isPopular    Boolean  @default(false)
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SELLER SUBSCRIPTION — Bronze / Silver / Gold
+//
+//  Separate from the ArchFacing Club (ClubPlan / ClubMembership). A seller
+//  subscription unlocks posting quotas, PACT territories and the verified
+//  Membership Certificate shown on their product, project and storefront pages.
+//  Pricing and quotas are admin-editable, so a plan can be re-priced or opened
+//  up without a code change.
+// ═══════════════════════════════════════════════════════════
+
+model SubscriptionPlan {
+  id         String   @id @default(cuid())
+  slug       String   @unique
+  name       String
+  tagline    String?
+  months     Int      @default(12)
+  price      Decimal  @db.Decimal(10, 2)
+  taxPercent Decimal  @default(18) @db.Decimal(5, 2)
+  benefits   String[]
+
+  /// Posting quotas — NULL means unlimited.
+  maxProjects     Int?
+  maxProducts     Int?
+  maxAroundUs     Int?
+  maxArtistry     Int?
+  /// PACT territories (PIN codes) a member may hold — NULL means unlimited.
+  pactTerritories Int?
+
+  isPopular Boolean @default(false)
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  subscriptions Subscription[]
+}
+
+model Subscription {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  planId   String
+  plan     SubscriptionPlan @relation(fields: [planId], references: [id])
+  /// Copied at purchase so the certificate keeps the plan name even if a plan
+  /// is later renamed or removed.
+  planName String
+
+  price     Decimal  @db.Decimal(10, 2)
+  startsAt  DateTime @default(now())
+  expiresAt DateTime
+  status    String   @default("ACTIVE") // ACTIVE | EXPIRED | CANCELLED
+  paymentId String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ADVERTISEMENTS — §7.4.6 (Corporate + External only)
+// ═══════════════════════════════════════════════════════════
+
+enum AdStatus {
+  DRAFT
+  PENDING_PAYMENT
+  PENDING_REVIEW
+  /// Approved, but its start date has not arrived yet
+  SCHEDULED
+  RUNNING
+  /// Stopped mid-flight by the advertiser or by an admin. Keeps its slot.
+  PAUSED
+  ENDED
+  REJECTED
+  /// Sent back for edits. Unlike REJECTED, the advertiser may resubmit.
+  CHANGES_REQUESTED
+  CANCELLED
+}
+
+/// A shelf an advertisement is filed under — "Building Materials" and so on.
+/// The count printed beside each one on the public page is COUNTED, never
+/// stored, so it can never drift from the campaigns that actually exist.
+model AdCategory {
+  id        String  @id @default(cuid())
+  slug      String  @unique
+  name      String
+  /// An `IconName` from src/components/ui.tsx
+  icon      String  @default("box")
+  isActive  Boolean @default(true)
+  sortOrder Int     @default(0)
+
+  bookings AdBooking[]
+}
+
+/// A duration package — Starter, Basic, Standard, Premium, Elite.
+/// Prices live here, never in the frontend, so an admin can change them.
+model AdPackage {
+  id            String   @id @default(cuid())
+  slug          String   @unique
+  name          String
+  /// "1 Day", "30 Days" — the rung printed under the name
+  durationLabel String
+  durationDays  Int
+  price         Decimal  @db.Decimal(10, 2)
+  taxPercent    Decimal  @default(18) @db.Decimal(5, 2)
+  /// "/day", "/30 days"
+  perLabel      String
+  features      String[]
+  isPopular     Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+
+  bookings AdBooking[]
+}
+
+/// One position in the "Featured Advertisements" rail.
+///
+/// Featured is a PROPERTY of a campaign, not a copy of it: a slot points at an
+/// AdBooking. Emptying a slot does not touch the campaign, and a campaign that
+/// falls out of its dates stops being featured on its own — the slot does not
+/// have to be cleared by hand.
+model AdFeaturedSlot {
+  id        String     @id @default(cuid())
+  position  Int        @unique
+  bookingId String?    @unique
+  booking   AdBooking? @relation(fields: [bookingId], references: [id], onDelete: SetNull)
+  isEnabled Boolean    @default(true)
+  /// Optional window narrower than the campaign's own run
+  startsAt  DateTime?
+  endsAt    DateTime?
+  updatedAt DateTime   @updatedAt
+}
+
+/// A place where an ad can appear — the admin decides the price
+model AdPlacement {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String?
+  /// Something like "1200x300"
+  size        String
+  /// An `IconName` — drawn on the "Premium Advertisement Locations" tile
+  icon        String  @default("monitor")
+  /// Shown on the public page's placement shelf. An internal-only placement
+  /// (a house slot, a test slot) sets this false and disappears from it.
+  isPublic    Boolean @default(true)
+  /// The price for one week
+  weeklyPrice Decimal @db.Decimal(10, 2)
+  taxPercent  Decimal @default(18) @db.Decimal(5, 2)
+  /// How many ads can rotate at one time
+  maxSlots    Int     @default(3)
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  bookings           AdBooking[]
+  campaignPlacements AdCampaignPlacement[]
+}
+
+model AdBooking {
+  id String @id @default(cuid())
+
+  /**
+   * ★ Almost everything below is OPTIONAL, and that is deliberate.
+   * A campaign is created at step 1 of the wizard and saved after every
+   * step, so a DRAFT legitimately has no placement, no creative, no dates
+   * and no package yet — that is what the Drafts screen's progress bar is
+   * measuring. The rule "a running campaign has all of it" is enforced at
+   * submission (`submitCampaign`) and by `liveCampaignWhere`, not by the
+   * column definitions.
+   * `placementId` is the campaign's PRIMARY placement. Additional ones live
+   * in AdCampaignPlacement, so one campaign can run in several places.
+   */
+  placementId  String?
+  placement    AdPlacement? @relation(fields: [placementId], references: [id])
+  advertiserId String
+  advertiser   User         @relation(fields: [advertiserId], references: [id], onDelete: Cascade)
+
+  title     String
+  imageUrl  String?
+  imageKey  String?
+  targetUrl String?
+
+  /// ─── the creative, as the public card draws it ───
+  /// All optional: a plain banner booking has none of them, and the rail
+  /// falls back to the advertiser's own name and logo.
+  brandName      String?
+  tagline        String?
+  headline       String?
+  description    String?
+  ctaText        String?
+  logoUrl        String?
+  /// A second creative cut for phone widths, when one was supplied
+  mobileImageUrl String?
+
+  /**
+   * What the uploaded creatives actually ARE — measured, not guessed.
+   * Every preview has to answer two questions: does this image fit the
+   * placement's shape, and what colour do we extend it with so the ad reads
+   * as one artwork rather than a picture on a coloured box. Both are
+   * properties of the file, so both are measured once by sharp at upload
+   * (`analysePalette` in lib/upload.ts) and stored here — rather than
+   * re-derived in the browser on every render, which would need the pixels
+   * downloaded and a canvas read per card.
+   * `palette` holds the average colour of the image's left and right edges,
+   * its dominant colour, and whether it is dark overall — see
+   * `CreativePalette` in lib/ad-creative.ts for the shape.
+   */
+  imageWidth         Int?
+  imageHeight        Int?
+  imagePalette       Json?
+  mobileImageWidth   Int?
+  mobileImageHeight  Int?
+  mobileImagePalette Json?
+
+  categoryId String?
+  category   AdCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  packageId  String?
+  package    AdPackage?  @relation(fields: [packageId], references: [id], onDelete: SetNull)
+
+  /// Featured is set by an admin only — never by the advertiser.
+  isFeatured       Boolean         @default(false)
+  featuredPriority Int             @default(0)
+  featuredSlot     AdFeaturedSlot?
+
+  /// ─── step 1 ───
+  objective String?
+  adTypeId  String?
+  adType    AdType? @relation(fields: [adTypeId], references: [id], onDelete: SetNull)
+
+  /// ─── step 5 ───
+  startsAt  DateTime?
+  endsAt    DateTime?
+  weeks     Int?
+  /// "10:00" / "23:59" — optional daypart, stored as plain HH:mm
+  startTime String?
+  endTime   String?
+
+  status    AdStatus @default(DRAFT)
+  paymentId String?
+
+  /**
+   * The review trail.
+   * `rejectionCode` is the configurable reason — Inappropriate Content,
+   * Trademark Issue and so on — and `rejectionReason` is the reviewer's own
+   * sentence. The Rejected screen groups by the code and prints the sentence.
+   */
+  submittedAt     DateTime?
+  reviewedById    String?
+  reviewedAt      DateTime?
+  rejectionCode   String?
+  rejectionReason String?
+  resubmitCount   Int       @default(0)
+
+  impressions Int @default(0)
+  clicks      Int @default(0)
+  /// Enquiries attributed to the campaign
+  leads       Int @default(0)
+
+  extraPlacements AdCampaignPlacement[]
+  targeting       AdTargeting?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([placementId, status, startsAt, endsAt])
+  @@index([advertiserId, status])
+  @@index([status, isFeatured, featuredPriority])
+  @@index([categoryId, status])
+  @@index([advertiserId, status, updatedAt])
+}
+
+/// The kind of advertisement — Banner, Featured, Sponsored Product and so on.
+/// A row here, not an enum, so an admin can add one without a deployment.
+model AdType {
+  id          String  @id @default(cuid())
+  slug        String  @unique
+  name        String
+  description String?
+  /// An `IconName` from src/components/ui.tsx
+  icon        String  @default("image")
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+
+  bookings AdBooking[]
+}
+
+/// A campaign's additional placements beyond its primary one.
+/// One campaign can run on the homepage, in a category and in search at once,
+/// each with its own price and ordering.
+model AdCampaignPlacement {
+  id          String      @id @default(cuid())
+  bookingId   String
+  booking     AdBooking   @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  placementId String
+  placement   AdPlacement @relation(fields: [placementId], references: [id], onDelete: Cascade)
+
+  price    Decimal @default(0) @db.Decimal(10, 2)
+  /// 1 is shown first when two campaigns compete for the same slot
+  priority Int     @default(5)
+  /// Share of impressions within a priority band, for rotation
+  weight   Int     @default(100)
+
+  @@unique([bookingId, placementId])
+  @@index([placementId])
+}
+
+/// Who a campaign is aimed at — step 4 of the wizard.
+/// Every array empty means "no restriction on that dimension".
+model AdTargeting {
+  id        String    @id @default(cuid())
+  bookingId String    @unique
+  booking   AdBooking @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+
+  country   String   @default("India")
+  states    String[]
+  cities    String[]
+  pincodes  String[]
+  /// PACT territories, by pincode
+  pactAreas String[]
+
+  productCategories      String[]
+  projectCategories      String[]
+  professionalCategories String[]
+
+  /// Role names from the Role enum, kept as strings so an admin can add an
+  /// audience segment that is not a login role.
+  audienceRoles String[]
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ARCHFACING CLUB — events (§5.2.10, §9.1)
+// ═══════════════════════════════════════════════════════════
+
+enum ClubEventType {
+  SEMINAR
+  EXHIBITION
+  WEBINAR
+  NETWORKING
+  CONFERENCE
+  WORKSHOP
+}
+
+enum ClubEventStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  COMPLETED
+}
+
+model ClubEvent {
+  id          String        @id @default(cuid())
+  slug        String        @unique
+  title       String
+  type        ClubEventType
+  /// One line for the listing card
+  summary     String
+  /// Full "About the Event" copy, paragraphs separated by a blank line
+  description String        @db.Text
+
+  heroImage String
+
+  startsAt     DateTime
+  endsAt       DateTime
+  isOnline     Boolean  @default(false)
+  venueName    String?
+  venueAddress String?
+  city         String?
+
+  organizer    String  @default("ArchFacing Club")
+  contactPhone String?
+  contactEmail String?
+
+  /// ⚠️ seatsTaken is only ever changed through a conditional update guarded by
+  ///   totalSeats — the same pattern merchandise stock uses. Reading it and
+  ///   writing it back would let two registrations take the last seat.
+  totalSeats Int
+  seatsTaken Int @default(0)
+
+  earlyBirdPrice Decimal?  @db.Decimal(10, 2)
+  earlyBirdTill  DateTime?
+  standardPrice  Decimal   @db.Decimal(10, 2)
+  spotPrice      Decimal?  @db.Decimal(10, 2)
+  taxPercent     Decimal   @default(18) @db.Decimal(5, 2)
+
+  /// "Who should attend" chips
+  audience   String[]
+  /// "Event includes" ticks
+  includes   String[]
+  /// [{ title, body, icon }] — the highlights strip
+  highlights Json?
+  /// [{ name, logo, tier }]
+  sponsors   Json?
+  /// Photographs from previous editions
+  gallery    String[]
+
+  status ClubEventStatus @default(PUBLISHED)
+
+  speakers      ClubEventSpeaker[]
+  agenda        ClubAgendaItem[]
+  faqs          ClubEventFaq[]
+  registrations ClubRegistration[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status, startsAt])
+  @@index([type, startsAt])
+}
+
+model ClubEventSpeaker {
+  id      String    @id @default(cuid())
+  eventId String
+  event   ClubEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  name      String
+  role      String
+  company   String
+  photo     String
+  bio       String? @db.Text
+  linkedin  String?
+  sortOrder Int     @default(0)
+
+  @@index([eventId, sortOrder])
+}
+
+model ClubAgendaItem {
+  id      String    @id @default(cuid())
+  eventId String
+  event   ClubEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  startTime String // "10:00 AM"
+  endTime   String // "10:30 AM"
+  title     String
+  detail    String?
+  speaker   String?
+  sortOrder Int     @default(0)
+
+  @@index([eventId, sortOrder])
+}
+
+model ClubEventFaq {
+  id      String    @id @default(cuid())
+  eventId String
+  event   ClubEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  question  String
+  answer    String @db.Text
+  sortOrder Int    @default(0)
+
+  @@index([eventId, sortOrder])
+}
+
+enum ClubRegistrationStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  CANCELLED
+  ATTENDED
+}
+
+model ClubRegistration {
+  id      String    @id @default(cuid())
+  eventId String
+  event   ClubEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  userId  String
+  user    User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// EARLY_BIRD | STANDARD | SPOT — the tier that was live when they booked
+  tier      String
+  seats     Int     @default(1)
+  amount    Decimal @db.Decimal(10, 2)
+  taxAmount Decimal @default(0) @db.Decimal(10, 2)
+
+  status     ClubRegistrationStatus @default(PENDING_PAYMENT)
+  paymentId  String?
+  /// Shown at the door
+  ticketCode String                 @unique
+
+  createdAt DateTime @default(now())
+
+  /// One registration per person per event — a second attempt edits the first
+  @@unique([eventId, userId])
+  @@index([userId, status])
+}
+
+/// Newsletter sign-ups from the Club pages
+model NewsletterSubscriber {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  /// Which page the sign-up came from — "club", "club-event", …
+  source         String    @default("club")
+  confirmedAt    DateTime?
+  unsubscribedAt DateTime?
+  createdAt      DateTime  @default(now())
+
+  @@index([createdAt])
+}
+
+/// §9.5 — the people interviewed on the ArchFacing podcast
+model PodcastGuest {
+  id        String   @id @default(cuid())
+  slug      String   @unique
+  name      String
+  role      String
+  company   String
+  photo     String
+  bio       String?  @db.Text
+  linkedin  String?
+  /// Episodes this guest appeared on, by Post slug
+  episodes  String[]
+  sortOrder Int      @default(0)
+  isActive  Boolean  @default(true)
+
+  @@index([isActive, sortOrder])
+}
+
+// ═══════════════════════════════════════════════════════════
+//  VISITOR ACTIVITY — saves, view history and reviews
+//
+//  All three hang off Post, which is the one table every public
+//  listing already lives in (projects, products, artistry, blog,
+//  around-us), so one model each covers every kind of item a
+//  reader can save, revisit or rate.
+// ═══════════════════════════════════════════════════════════
+
+/// An item a reader has bookmarked — "Saved Items" on the dashboard.
+model SavedItem {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  /// Saving twice is the same save, so the pair is unique — that also makes
+  /// the un-save a single delete and the "is it saved?" check a single lookup.
+  @@unique([userId, postId])
+  @@index([userId, createdAt])
+}
+
+/// One row per (reader, item). viewedAt is overwritten on a revisit, so the
+/// list stays a history of DISTINCT items, newest first, and never grows
+/// unbounded for someone who refreshes the same page.
+model RecentlyViewed {
+  id String @id @default(cuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  viewedAt DateTime @default(now())
+
+  @@unique([userId, postId])
+  @@index([userId, viewedAt])
+}
+
+/// A reader's rating of an item, 1-5, with optional words.
+model Review {
+  id String @id @default(cuid())
+
+  authorId String
+  author   User   @relation("ReviewAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+  postId   String
+  post     Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  /// 1-5. Enforced in src/lib/visitor.ts, not by the database.
+  rating Int
+  body   String? @db.Text
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// One review per person per item — a second submission edits the first.
+  @@unique([authorId, postId])
+  @@index([postId, createdAt])
+  @@index([authorId, createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════
+//  COUPONS — Seller Studio discount codes
+// ═══════════════════════════════════════════════════════════
+
+enum CouponType {
+  PERCENT // value is a % off (with optional maxDiscount cap)
+  FLAT // value is a flat ₹ amount off
+}
+
+model Coupon {
+  id          String     @id @default(cuid())
+  code        String     @unique
+  description String?
+  type        CouponType @default(PERCENT)
+  /// PERCENT: the % (e.g. 10). FLAT: the ₹ amount.
+  value       Decimal    @db.Decimal(10, 2)
+  /// Minimum order subtotal for the code to apply
+  minOrder    Decimal?   @db.Decimal(12, 2)
+  /// Cap on a percentage discount
+  maxDiscount Decimal?   @db.Decimal(10, 2)
+
+  /// Total redemptions allowed (null = unlimited)
+  usageLimit Int?
+  usedCount  Int  @default(0)
+
+  isActive  Boolean   @default(true)
+  startsAt  DateTime?
+  expiresAt DateTime?
+
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive, expiresAt])
+}
+
+
+/// A document a user (or an admin on their behalf) submitted for verification.
+/// Types come from Verification Settings (SiteSetting 'verification.config').
+model VerificationDocument {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation("DocOwner", fields: [userId], references: [id], onDelete: Cascade)
+
+  /// VerificationDocType.id at the time of upload, and its name then
+  docTypeId String
+  docName   String
+
+  url        String
+  storageKey String?
+  fileName   String
+  mimeType   String
+  sizeBytes  Int     @default(0)
+
+  /// SUBMITTED | ACCEPTED | REJECTED
+  status String  @default("SUBMITTED")
+  note   String?
+
+  uploadedById String?
+  uploadedBy   User?     @relation("DocUploader", fields: [uploadedById], references: [id])
+  reviewedById String?
+  reviewedBy   User?     @relation("DocReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([status, createdAt])
+}
+
+/// One visit to a member's public storefront (/<sellerSlug>), at most one per
+/// visitor per profile per day. Anonymous visitors are a salted hash of
+/// IP + user agent — the raw IP is never stored.
+model ProfileView {
+  id            String   @id @default(cuid())
+  profileUserId String
+  profileUser   User     @relation("ProfileViewed", fields: [profileUserId], references: [id], onDelete: Cascade)
+  viewerId      String?
+  viewer        User?    @relation("ProfileViewer", fields: [viewerId], references: [id], onDelete: SetNull)
+  visitorKey    String
+  day           DateTime @db.Date
+  createdAt     DateTime @default(now())
+
+  @@unique([profileUserId, visitorKey, day])
+  @@index([profileUserId, createdAt])
+}
+
+/// A public comment on a post (Artistry today). Soft-deleted by its author or
+/// staff; the text passes the same no-phone-number rule as listings.
+model PostComment {
+  id String @id @default(cuid())
+
+  postId String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  body String @db.Text
+
+  createdAt DateTime  @default(now())
+  deletedAt DateTime?
+
+  @@index([postId, deletedAt, createdAt])
+  @@index([userId, createdAt])
+}

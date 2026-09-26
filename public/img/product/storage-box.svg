@@ -1,0 +1,3 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="500" height="500"><defs><linearGradient id="pbg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#EFE7DC"/><stop offset="1" stop-color="#DCCDB8"/></linearGradient></defs><rect width="500" height="500" fill="url(#pbg)"/><path d="M140 220 L250 170 L360 220 L360 320 L250 370 L140 320 Z" fill="#C4AE93"/>
+          <path d="M140 220 L250 270 L360 220" fill="none" stroke="#EFE7DC" stroke-width="4"/>
+          <line x1="250" y1="270" x2="250" y2="370" stroke="#EFE7DC" stroke-width="4"/></svg>

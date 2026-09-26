@@ -1,0 +1,808 @@
+// ArchFacing — Prisma Schema
+// Based on PDF Archfacing.pdf (Reg. L-92657/2020)
+//
+// Usage: place at packages/db/prisma/schema.prisma
+//   npx prisma migrate dev --name init
+//   npx prisma generate
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ENUMS
+// ═══════════════════════════════════════════════════════════
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  ADMIN_SELLER          // Merchandise + Podcast only
+  RM_EMPLOYEE
+  CLIENT
+  PROFESSIONAL          // Designa or Designi
+  CONSULTANT
+  BMF
+  CORPORATE
+  EXTERNAL_ADVERTISER
+}
+
+/// PDF §3.1.3 — Designa vs Designi
+enum DesignaType {
+  DESIGNA               // Architecture
+  DESIGNI               // Interior
+}
+
+/// PDF §3.1.3.1–3.1.3.4 — the 4 sub-types of professional
+enum ProfessionalTier {
+  PROFESSIONAL
+  LEGEND
+  INNOVATOR
+  STUDENT               // free registration
+}
+
+/// PDF §4.1.5 — the 4 consultant groups
+enum ConsultantGroup {
+  ENGINEERING           // 9 sub-categories
+  REAL_ESTATE           // 3
+  FINANCIAL             // 6
+  INDIAN_TRADITIONAL    // 6
+}
+
+enum UserStatus {
+  PENDING_VERIFICATION
+  ACTIVE
+  SUSPENDED
+  BANNED
+}
+
+/// Which service the PACT seat is for
+/// PDF §7.4.2 — Designa/Designi/BMF = 1 seat, Consultant = 24 seats
+enum PactServiceType {
+  DESIGNA
+  DESIGNI
+  CONSULTANT
+  BMF
+  CORPORATE             // PDF: "will open later"
+}
+
+enum PactStatus {
+  RESERVED              // 15 min payment window
+  ACTIVE
+  EXPIRED               // 10 years completed
+  SUSPENDED             // cessation §3.1.8.5
+  TRANSFERRED
+}
+
+/// A single Post table handles all content types
+enum PostType {
+  PROJECT
+  PRODUCT
+  AROUND_US
+  ARTISTRY
+  BLOG
+  DESIGN_COMPETITION
+  PODCAST               // Admin-Seller
+  MERCHANDISE           // Admin-Seller
+  ADVERTISEMENT
+}
+
+enum PostStatus {
+  DRAFT
+  PENDING_REVIEW
+  PUBLISHED
+  REJECTED
+  ARCHIVED
+}
+
+enum EnquiryStatus {
+  NEW
+  ASSIGNED
+  IN_PROGRESS
+  RESPONDED
+  CONVERTED
+  CLOSED
+  UNROUTED              // no holder was found for that PACT
+}
+
+enum PaymentPurpose {
+  PACT_PURCHASE
+  PACT_RENEWAL
+  REGISTRATION_FEE
+  CLUB_MEMBERSHIP
+  PORTAL_SPACE
+  MERCHANDISE_ORDER
+  ADVERTISEMENT
+  COMPETITION_ENTRY
+  DA_INVOICE            // the DA's monthly 20%
+}
+
+enum PaymentStatus {
+  CREATED
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED    // §6.1.2.2.6 — maximum 25%
+}
+
+enum MediaType {
+  IMAGE                 // JPG, 2MB, landscape
+  VIDEO                 // MP4, 20MB
+  PDF                   // 10MB
+  PPT                   // 10MB
+  DOCUMENT              // MS Office, 2MB
+  YOUTUBE_LINK
+}
+
+// ═══════════════════════════════════════════════════════════
+//  USERS & PROFILES
+// ═══════════════════════════════════════════════════════════
+
+model User {
+  id            String     @id @default(cuid())
+  mobile        String     @unique          // PDF: mobile is the primary identity
+  mobileVerified Boolean   @default(false)
+  email         String?    @unique
+  emailVerified DateTime?
+  passwordHash  String?                     // for admin/employee
+  role          Role
+  status        UserStatus @default(PENDING_VERIFICATION)
+
+  // Basic details — PDF §4.4.2.1
+  name          String
+  gender        String?
+  dateOfBirth   DateTime?
+  profilePhoto  String?
+  logo          String?                     // §5.2.14 Add Logo
+
+  // Address
+  addressLine   String?
+  pincode       String?                     // this is the basis of the PACT
+  city          String?
+  state         String?
+
+  // Social — §4.4.2.1.7
+  facebookUrl   String?
+  youtubeUrl    String?
+  instagramUrl  String?
+  twitterUrl    String?
+  linkedinUrl   String?
+
+  // Storage quota — §4.4 (VII) Portal Spaces
+  storageQuotaMb Int       @default(100)
+  storageUsedMb  Int       @default(0)
+
+  // Employee-specific
+  mustChangePassword Boolean @default(false)
+  department         String?
+  assignedStates     String[]               // RM territory
+  assignedPincodes   String[]
+
+  termsAcceptedAt DateTime?
+  lastLoginAt     DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  deletedAt       DateTime?
+
+  professionalProfile ProfessionalProfile?
+  consultantProfile   ConsultantProfile?
+  bmfProfile          BmfProfile?
+  corporateProfile    CorporateProfile?
+  designAssociate     DesignAssociate?
+
+  pacts           Pact[]           @relation("PactHolder")
+  posts           Post[]
+  enquiriesSent   Enquiry[]        @relation("EnquiryClient")
+  enquiriesRecvd  Enquiry[]        @relation("EnquiryHolder")
+  enquiriesMgd    Enquiry[]        @relation("EnquiryEmployee")
+  payments        Payment[]
+  memberships     ClubMembership[]
+  portalSpaces    PortalSpace[]
+  complaintsAbout Complaint[]      @relation("ComplaintAgainst")
+  complaintsFiled Complaint[]      @relation("ComplaintBy")
+  orders          Order[]
+  auditLogs       AuditLog[]
+  notifications   Notification[]
+  createdBy       User?            @relation("UserCreator", fields: [createdById], references: [id])
+  createdById     String?
+  createdUsers    User[]           @relation("UserCreator")
+
+  @@index([role, status])
+  @@index([pincode])
+  @@index([state])
+}
+
+/// PDF §4.1.3, §4.1.4 — Designa / Designi
+model ProfessionalProfile {
+  id           String           @id @default(cuid())
+  userId       String           @unique
+  user         User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  designaType  DesignaType
+  tier         ProfessionalTier @default(PROFESSIONAL)
+
+  /// §3.1.8.1.1 — COA number is mandatory for an architect
+  coaNumber    String?
+  coaVerified  Boolean          @default(false)
+
+  firmName     String?
+  experience   Int?
+  bio          String?          @db.Text
+  categories   String[]         // category slugs from §4.1.3 / §4.1.4
+
+  isVerified   Boolean          @default(false)
+  verifiedAt   DateTime?
+  verifiedById String?
+
+  qualifications Qualification[]
+
+  @@index([designaType, tier])
+  @@index([isVerified])
+}
+
+/// PDF §4.1.5 — 24 sub-categories
+model ConsultantProfile {
+  id            String          @id @default(cuid())
+  userId        String          @unique
+  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  group         ConsultantGroup
+  subCategory   String          // e.g. "civil_engineer", "astrologer"
+
+  firmName      String?
+  experience    Int?
+  bio           String?         @db.Text
+  licenseNumber String?
+
+  isVerified    Boolean         @default(false)
+  verifiedAt    DateTime?
+
+  qualifications Qualification[]
+
+  @@index([group, subCategory])
+}
+
+/// PDF §4.1.6, §3.1.8.1.3 — only Designa/Designi holders can become BMF
+model BmfProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  designaType       DesignaType   // required for eligibility
+  businessName      String
+  gstNumber         String?
+  productCategories String[]      // slugs from §4.1.7.1
+  commissionRate    Decimal?      @db.Decimal(5, 2)
+
+  isVerified        Boolean  @default(false)
+}
+
+/// PDF §4.5 — Corporate
+model CorporateProfile {
+  id                String   @id @default(cuid())
+  userId            String   @unique
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  companyName       String
+  gstNumber         String
+  panNumber         String
+  incorporationDate DateTime?
+  companyLogo       String?
+  website           String?
+  productCategories String[]      // for the brand logo panel
+
+  /// §3.1.6 — corporates get a variable number of free postings
+  freePostingsTotal Int      @default(10)
+  freePostingsUsed  Int      @default(0)
+
+  isVerified        Boolean  @default(false)
+}
+
+/// PDF §3.1.7 — Design Associate
+model DesignAssociate {
+  id            String    @id @default(cuid())
+  userId        String    @unique
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// §8.2 — firstname + PACT@gmail.com
+  daEmail       String    @unique
+  daCode        String    @unique          // "Name + PACT" reference code
+
+  /// §3.1.7.9 — KYC required
+  kycVerified   Boolean   @default(false)
+  kycDocuments  Json?                      // encrypted
+  panNumber     String?
+  gstNumber     String?
+
+  /// §3.1.7.7 — 80% DA, 20% ArchFacing
+  revenueShare  Decimal   @default(80.00) @db.Decimal(5, 2)
+
+  /// §3.1.7.10.1 — 10 years free club membership
+  clubValidTill DateTime?
+
+  approvedAt    DateTime?
+  approvedById  String?
+  createdAt     DateTime  @default(now())
+
+  invoices      DaInvoice[]
+}
+
+/// PDF §4.3.3.2 — from 10th up to PhD
+model Qualification {
+  id             String  @id @default(cuid())
+  level          String  // TENTH | TWELFTH | GRADUATION | POST_GRADUATION | PHD | PROFESSIONAL_MEMBERSHIP
+  boardOrUniv    String
+  state          String
+  passingYear    Int
+  membershipNo   String?
+  certificateUrl String?
+
+  professionalProfileId String?
+  professionalProfile   ProfessionalProfile? @relation(fields: [professionalProfileId], references: [id], onDelete: Cascade)
+  consultantProfileId   String?
+  consultantProfile     ConsultantProfile?   @relation(fields: [consultantProfileId], references: [id], onDelete: Cascade)
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PACT — the heart of the platform
+// ═══════════════════════════════════════════════════════════
+
+/// PDF §3.1.8 — PIN Area Code Territory
+model Pact {
+  id          String          @id @default(cuid())
+
+  pincode     String
+  state       String
+  city        String?
+
+  serviceType PactServiceType
+  /// Filled in only for CONSULTANT (which one out of the 24)
+  /// For the rest keep "-" so that the unique constraint works
+  subCategory String          @default("-")
+
+  holderId    String?
+  holder      User?           @relation("PactHolder", fields: [holderId], references: [id])
+
+  status      PactStatus      @default(RESERVED)
+
+  /// §3.1.8 — 10 years
+  purchasedAt DateTime?
+  expiresAt   DateTime?
+  /// The 15-min TTL of RESERVED
+  reservedTill DateTime?
+
+  price       Decimal?        @db.Decimal(10, 2)
+  paymentId   String?         @unique
+
+  /// §3.1.8.5 — cessation tracking
+  complaintCount     Int      @default(0)
+  lastResponseAt     DateTime?
+  suspendedAt        DateTime?
+  suspensionReason   String?
+
+  /// transfer history
+  transferredFromId  String?
+  transferApprovedBy String?
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  enquiries   Enquiry[]
+
+  /// ★ The most important constraint of all — one PIN + service + sub-category only once
+  ///
+  ///   ⚠️ There is deliberately NO @@unique here. A Prisma @@unique applies to
+  ///   every row, so an EXPIRED or SUSPENDED PACT would block that seat forever.
+  ///   The constraint is a Postgres PARTIAL index, written BY HAND in migration
+  ///   20260826180000_pact_active_unique:
+  ///
+  ///     CREATE UNIQUE INDEX pact_seat_taken_unique
+  ///       ON "Pact"(pincode, "serviceType", "subCategory")
+  ///       WHERE status IN ('RESERVED','ACTIVE');
+  ///
+  ///   NEVER add @@unique([pincode, serviceType, subCategory]) — a paid seat
+  ///   would be blocked forever. This file is an early snapshot; the schema
+  ///   that actually runs is prisma/schema.prisma.
+  @@index([holderId, status])
+  @@index([pincode, serviceType])
+  @@index([status, expiresAt])
+}
+
+// ═══════════════════════════════════════════════════════════
+//  CONTENT — one Post table, many types
+// ═══════════════════════════════════════════════════════════
+
+model Post {
+  id          String     @id @default(cuid())
+  type        PostType
+  status      PostStatus @default(PENDING_REVIEW)
+
+  authorId    String
+  author      User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  title       String
+  slug        String     @unique
+  /// PDF: a 200-word limit in most forms
+  description String     @db.Text
+
+  category    String
+  subCategory String?
+
+  /// For filters — §6.1.3.x
+  pincode     String?
+  city        String?
+  state       String?
+  /// "Introducing Year" — present in every filter
+  year        Int?
+
+  /// type-specific fields (project area, prize money, product price…)
+  meta        Json?
+
+  /// Design Competition fields — §5.2.4.1.2
+  prizeMoney       Decimal?  @db.Decimal(12, 2)
+  submissionDeadline DateTime?
+  juryRequired     Int?
+  needsDesignAssociate Boolean @default(false)
+  visibleToDesigna Boolean   @default(true)
+  visibleToDesigni Boolean   @default(true)
+
+  /// Around Us — §5.2.4.1
+  isPaidCategory Boolean  @default(false)
+  eventDate      DateTime?
+  venue          String?
+  entryFee       Decimal?  @db.Decimal(10, 2)
+  attendeeCount  Int?
+  reportedBy     String?
+  writtenBy      String?
+  referenceUrl   String?
+
+  viewCount   Int        @default(0)
+
+  /// moderation
+  reviewedById String?
+  reviewedAt   DateTime?
+  rejectionReason String?
+
+  publishedAt DateTime?
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+  deletedAt   DateTime?
+
+  media       Media[]
+
+  @@index([type, status, publishedAt])
+  @@index([authorId, type])
+  @@index([category, subCategory])
+  @@index([state, year])
+  @@index([pincode])
+}
+
+/// PDF §7.10 — the upload rules
+model Media {
+  id        String    @id @default(cuid())
+  type      MediaType
+  url       String
+  thumbnailUrl String?
+  fileName  String
+  mimeType  String
+  sizeBytes Int
+  width     Int?
+  height    Int?
+  sortOrder Int       @default(0)
+
+  postId    String?
+  post      Post?     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime  @default(now())
+
+  @@index([postId, sortOrder])
+}
+
+// ═══════════════════════════════════════════════════════════
+//  ENQUIRIES — the lead engine of Consult Nearby
+// ═══════════════════════════════════════════════════════════
+
+model Enquiry {
+  id          String        @id @default(cuid())
+
+  clientId    String
+  client      User          @relation("EnquiryClient", fields: [clientId], references: [id])
+
+  /// Which PACT it was routed to
+  pactId      String?
+  pact        Pact?         @relation(fields: [pactId], references: [id])
+  holderId    String?
+  holder      User?         @relation("EnquiryHolder", fields: [holderId], references: [id])
+
+  /// When unrouted, an RM Employee assigns it manually
+  employeeId  String?
+  employee    User?         @relation("EnquiryEmployee", fields: [employeeId], references: [id])
+
+  /// §4.1.2 — the client selects PIN + category + sub-category
+  pincode     String
+  serviceType PactServiceType
+  subCategory String?
+
+  subject     String
+  message     String        @db.Text
+  budget      Decimal?      @db.Decimal(12, 2)
+  contactName  String
+  contactPhone String
+  contactEmail String?
+
+  status      EnquiryStatus @default(NEW)
+  respondedAt DateTime?
+  closedAt    DateTime?
+
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  responses   EnquiryResponse[]
+
+  @@index([holderId, status, createdAt])
+  @@index([clientId, createdAt])
+  @@index([status, pincode])
+  @@index([employeeId, status])
+}
+
+model EnquiryResponse {
+  id         String   @id @default(cuid())
+  enquiryId  String
+  enquiry    Enquiry  @relation(fields: [enquiryId], references: [id], onDelete: Cascade)
+  senderId   String
+  message    String   @db.Text
+  attachments String[]
+  createdAt  DateTime @default(now())
+
+  @@index([enquiryId, createdAt])
+}
+
+/// §3.1.8.5 — cessation at 5 complaints
+model Complaint {
+  id          String   @id @default(cuid())
+  againstId   String
+  against     User     @relation("ComplaintAgainst", fields: [againstId], references: [id])
+  byId        String
+  by          User     @relation("ComplaintBy", fields: [byId], references: [id])
+  pactId      String?
+
+  reason      String
+  details     String   @db.Text
+  status      String   @default("OPEN")   // OPEN | UNDER_REVIEW | RESOLVED | DISMISSED
+
+  /// PDF: all complaints go to the Design Cell
+  reviewedById String?
+  resolution   String?  @db.Text
+  resolvedAt   DateTime?
+  createdAt    DateTime @default(now())
+
+  @@index([againstId, status])
+}
+
+// ═══════════════════════════════════════════════════════════
+//  PAYMENTS & COMMERCE
+// ═══════════════════════════════════════════════════════════
+
+model Payment {
+  id              String         @id @default(cuid())
+  userId          String
+  user            User           @relation(fields: [userId], references: [id])
+
+  purpose         PaymentPurpose
+  status          PaymentStatus  @default(CREATED)
+
+  amount          Decimal        @db.Decimal(12, 2)
+  taxAmount       Decimal        @default(0) @db.Decimal(12, 2)
+  totalAmount     Decimal        @db.Decimal(12, 2)
+  currency        String         @default("INR")
+
+  razorpayOrderId   String?      @unique
+  razorpayPaymentId String?      @unique
+  razorpaySignature String?
+
+  /// §6.1.2.2.6 — maximum 25% refund, within 15 days
+  refundedAmount  Decimal        @default(0) @db.Decimal(12, 2)
+  refundedAt      DateTime?
+  refundReason    String?
+
+  /// What it is for (pactId, orderId, membershipId…)
+  referenceId     String?
+  metadata        Json?
+
+  invoiceNumber   String?        @unique
+  paidAt          DateTime?
+  createdAt       DateTime       @default(now())
+
+  @@index([userId, purpose, status])
+  @@index([status, createdAt])
+}
+
+/// §5.2.10, §7.4.3
+model ClubMembership {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  planName  String
+  price     Decimal  @db.Decimal(10, 2)
+  startsAt  DateTime
+  expiresAt DateTime
+  /// A DA gets it free for 10 years
+  isFree    Boolean  @default(false)
+  paymentId String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, expiresAt])
+}
+
+/// §5.2.9 — for 5 years, non-refundable
+model PortalSpace {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  extraMb   Int
+  price     Decimal  @db.Decimal(10, 2)
+  purchasedAt DateTime @default(now())
+  expiresAt DateTime            // +5 years
+  paymentId String?
+
+  @@index([userId, expiresAt])
+}
+
+/// §3.1.7.6 — AF raises the invoice, the DA realises the payment
+model DaInvoice {
+  id            String   @id @default(cuid())
+  daId          String
+  da            DesignAssociate @relation(fields: [daId], references: [id])
+
+  invoiceNumber String   @unique
+  projectRef    String?
+  clientName    String
+
+  grossAmount   Decimal  @db.Decimal(12, 2)
+  /// 80% back to the DA
+  daShare       Decimal  @db.Decimal(12, 2)
+  /// 20% ArchFacing
+  afShare       Decimal  @db.Decimal(12, 2)
+  taxAmount     Decimal  @default(0) @db.Decimal(12, 2)
+
+  /// §3.1.7.6 f — invoice on the 1st of every month, payment by the end of the month
+  issuedOn      DateTime
+  dueOn         DateTime
+  paidOn        DateTime?
+  status        String   @default("ISSUED")  // ISSUED | PAID | OVERDUE
+
+  createdAt     DateTime @default(now())
+
+  @@index([daId, status])
+}
+
+// ═══════════════════════════════════════════════════════════
+//  MERCHANDISE E-COMMERCE (Admin-Seller panel)
+// ═══════════════════════════════════════════════════════════
+
+model Order {
+  id            String   @id @default(cuid())
+  orderNumber   String   @unique
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+
+  subtotal      Decimal  @db.Decimal(12, 2)
+  shipping      Decimal  @default(0) @db.Decimal(10, 2)
+  tax           Decimal  @default(0) @db.Decimal(10, 2)
+  total         Decimal  @db.Decimal(12, 2)
+
+  status        String   @default("PENDING")  // PENDING | PAID | SHIPPED | DELIVERED | CANCELLED
+
+  shippingName    String
+  shippingPhone   String
+  shippingAddress String
+  shippingPincode String
+  shippingCity    String
+  shippingState   String
+
+  paymentId     String?
+  trackingNumber String?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  items         OrderItem[]
+
+  @@index([userId, createdAt])
+  @@index([status])
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  /// The Post whose type = MERCHANDISE
+  postId    String
+  title     String
+  variant   String?
+  quantity  Int
+  unitPrice Decimal @db.Decimal(10, 2)
+  lineTotal Decimal @db.Decimal(10, 2)
+}
+
+// ═══════════════════════════════════════════════════════════
+//  SYSTEM
+// ═══════════════════════════════════════════════════════════
+
+/// §7.11.1.1 — so that admin can add/edit/delete categories
+model Category {
+  id          String     @id @default(cuid())
+  type        PostType
+  slug        String
+  name        String
+  nameHindi   String?
+  description String?
+  icon        String?
+  sortOrder   Int        @default(0)
+  isActive    Boolean    @default(true)
+
+  /// §7.11.1.2 — custom input fields for the category
+  customFields Json?
+
+  parentId    String?
+  parent      Category?  @relation("CategoryTree", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryTree")
+
+  @@unique([type, slug])
+  @@index([type, parentId, sortOrder])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String   // NEW_ENQUIRY | PACT_EXPIRING | PAYMENT_SUCCESS | POST_APPROVED …
+  title     String
+  body      String
+  link      String?
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, isRead, createdAt])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  actorId    String?
+  actor      User?    @relation(fields: [actorId], references: [id])
+  action     String   // USER_SUSPENDED | PACT_TRANSFERRED | POST_APPROVED …
+  entityType String
+  entityId   String
+  before     Json?
+  after      Json?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([actorId, createdAt])
+}
+
+/// §7.11.1.9, §7.11.1.12 — so that admin can change the menu/footer/header layout
+model SiteSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}
+
+model OtpRequest {
+  id        String   @id @default(cuid())
+  mobile    String
+  codeHash  String
+  purpose   String   // REGISTRATION | LOGIN | MOBILE_CHANGE
+  attempts  Int      @default(0)
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([mobile, createdAt])
+}

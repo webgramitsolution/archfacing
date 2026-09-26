@@ -1,0 +1,730 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     A modern, slim scrollbar across the whole app in place of
+     the chunky OS default. WebKit/Chrome/Edge get the ::-webkit
+     rules (8px, rounded, tinted thumb); Firefox gets the standard
+     `scrollbar-width` behind a Gecko-only feature query — WebKit
+     must NOT see `scrollbar-width: thin`, or it drops these rules
+     and falls back to its ~10px native bar. Elements that opt out
+     (.scrollbar-none, .no-scrollbar, the swipe strips) win on
+     specificity and keep their own treatment.
+     ───────────────────────────────────────────────────────── */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(17, 24, 39, 0.2);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(17, 24, 39, 0.34);
+  }
+  @supports (-moz-appearance: none) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(17, 24, 39, 0.22) transparent;
+    }
+  }
+
+  body {
+    /* Inter carries body text, per the theme guide. Without this the
+       browser fell back to its default serif. */
+    @apply bg-paper font-sans text-ink antialiased;
+  }
+
+  /* Poppins carries every heading, per the theme guide. */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display;
+  }
+
+  ::selection {
+    @apply bg-brand/15;
+  }
+
+  :focus-visible {
+    @apply outline-2 outline-offset-2 outline-brand;
+  }
+}
+
+@layer components {
+  /* ─────────────────────────────────────────────────────────
+     Page container — full width, exactly 15px on each side.
+     Phones get the same 15px, so the page reads identically on
+     every device instead of switching to a narrow column.
+     ───────────────────────────────────────────────────────── */
+  .container-af {
+    @apply mx-auto w-full px-[15px];
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     Mega-menu column grid.
+
+     The track list is fixed, never `auto-fit`, so a menu with 14
+     categories lays out as an exact 7 x 2 and not as whatever
+     happens to fit. The count comes in from the component as
+     `--mega-cols-lg` / `--mega-cols-xl`, which hold a complete
+     track list rather than a bare number — `repeat()` will not
+     take a custom property as its count in every browser.
+
+     Narrow screens step down to 2 or 3 columns. Nothing is ever
+     hidden or scrolled; the panel simply grows more rows.
+     ───────────────────────────────────────────────────────── */
+  .mega-grid {
+    display: grid;
+    gap: 1.25rem 1rem;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  @media (min-width: 640px) {
+    .mega-grid {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+  /* From the tablet up the panel spans the viewport, so every category sits in
+     ONE ROW — Projects at its full seven, the others at six or their own count
+     — rather than collapsing to three and stacking. The count is the menu's
+     own (`--mega-cols-xl` = repeat(min(cols, 7))), which is what keeps the
+     columns aligned instead of wrapping unevenly. */
+  @media (min-width: 768px) {
+    .mega-grid {
+      gap: 1rem 0.75rem;
+      grid-template-columns: var(--mega-cols-xl, repeat(6, minmax(0, 1fr)));
+    }
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     Striped columns — every second column carries a tint.
+
+     The columns sit edge to edge and take the separation from
+     their own padding instead of a gap, so the bands are
+     continuous rather than a row of cards. The padding replaces
+     the gap almost exactly, so the text keeps its width.
+
+     The nth-child period has to match the column count at each
+     breakpoint. A single fixed period would tint column 2 in the
+     first row and column 1 in the second whenever the count is
+     odd, giving a checkerboard instead of bands. Each block
+     therefore clears the previous period before setting its own,
+     with a reset of equal specificity so source order decides.
+     ───────────────────────────────────────────────────────── */
+  .mega-grid.is-striped {
+    column-gap: 0;
+  }
+  .mega-grid.is-striped > * {
+    padding: 8px;
+  }
+
+  /* 2 columns */
+  .mega-grid.is-striped > :nth-child(2n) {
+    background-color: #f9f9f9;
+  }
+
+  @media (min-width: 640px) {
+    /* 3 columns */
+    .mega-grid.is-striped > :nth-child(n) {
+      background-color: transparent;
+    }
+    .mega-grid.is-striped > :nth-child(3n + 2) {
+      background-color: #f9f9f9;
+    }
+  }
+
+  /* One row from the tablet up: every category is a single column, so simple
+     even-column tinting gives clean alternating bands whatever the count. */
+  @media (min-width: 768px) {
+    .mega-grid.is-striped > :nth-child(n) {
+      background-color: transparent;
+    }
+    .mega-grid.is-striped > :nth-child(2n) {
+      background-color: #f9f9f9;
+    }
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     Card columns — each category in its own bordered box, with
+     the heading centred over it.
+     ───────────────────────────────────────────────────────── */
+  .mega-grid.is-cards > * {
+    @apply rounded-lg border border-line px-3.5 py-3;
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     A category wide enough to take two tracks. Its children
+     flow down the first sub-column and on into the second, so
+     the two halves come out balanced.
+     ───────────────────────────────────────────────────────── */
+  .mega-wide {
+    grid-column: span 2;
+  }
+  .mega-subcols {
+    columns: 2;
+    column-gap: 1.25rem;
+  }
+  .mega-subcols > li {
+    break-inside: avoid;
+    padding-block: 1.5px;
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     The three controls in the top bar — city picker, search,
+     Consult Nearby — sit on one line, so they share a height
+     and a corner radius from here rather than each carrying
+     its own padding and drifting a pixel apart.
+     ───────────────────────────────────────────────────────── */
+  .header-control {
+    @apply h-[38px] rounded-md;
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     A scroll area that does not hand 15px of a 225px sidebar
+     to a Windows scrollbar.
+
+     The track is transparent and the thumb only shows against
+     the dark panel, so the bar reads as part of the sidebar
+     rather than a piece of operating-system furniture sitting
+     inside it. Firefox gets the standard properties; WebKit
+     gets its own, and both are needed.
+     ───────────────────────────────────────────────────────── */
+  /*
+   * WebKit only. Chrome honours `scrollbar-width: thin` and then IGNORES
+   * ::-webkit-scrollbar entirely, and `thin` is about 10px — wider than this
+   * needs to be. So the standard property is given to Firefox alone, behind
+   * a feature query WebKit does not match.
+   */
+  /*
+   * A rail that is paged by its own arrow buttons draws no bar at all — the
+   * bar would sit under the cards and read as a stray line across the card.
+   */
+  .scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scroll-slim::-webkit-scrollbar,
+  .scroll-slim-light::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  .scroll-slim::-webkit-scrollbar-track,
+  .scroll-slim-light::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scroll-slim::-webkit-scrollbar-thumb,
+  .scroll-slim-light::-webkit-scrollbar-thumb {
+    border-radius: 999px;
+  }
+
+  /* on the dark sidebar */
+  .scroll-slim::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.16);
+  }
+  .scroll-slim:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.3);
+  }
+
+  /* on the light content column */
+  .scroll-slim-light::-webkit-scrollbar-thumb {
+    background-color: rgba(17, 24, 39, 0.14);
+  }
+  .scroll-slim-light:hover::-webkit-scrollbar-thumb {
+    background-color: rgba(17, 24, 39, 0.26);
+  }
+
+  /* Firefox has no ::-webkit pseudo-elements, so it needs the standard
+     property; `-moz-appearance` is the cheapest thing only Gecko matches. */
+  @supports (-moz-appearance: none) {
+    .scroll-slim {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255, 255, 255, 0.22) transparent;
+    }
+    .scroll-slim-light {
+      scrollbar-width: thin;
+      scrollbar-color: rgba(17, 24, 39, 0.2) transparent;
+    }
+  }
+
+  /* ─── surfaces ─── */
+  /*
+   * White, not the panel grey.
+   *
+   * Every page sits on white, and a card is told apart by its border and its
+   * shadow rather than by a fill — a second near-white grey on top of white
+   * only reads as a smudge. `paper-2` is still there for the places that do
+   * want a filled panel, such as an input or a thumbnail well.
+   */
+  .card {
+    @apply rounded-card border border-line bg-paper shadow-card;
+  }
+
+  .card-hover {
+    @apply card transition-shadow duration-200 hover:shadow-lift;
+  }
+
+  /* ─── buttons ─── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5
+           text-[14px] font-semibold transition-colors
+           disabled:cursor-not-allowed disabled:opacity-55;
+  }
+  .btn-primary {
+    @apply btn bg-brand text-white hover:bg-brand-hover;
+  }
+  .btn-dark {
+    @apply btn bg-navy text-white hover:bg-navy-2;
+  }
+  .btn-outline {
+    @apply btn border border-line bg-paper-2 text-ink hover:border-ink-3;
+  }
+  .btn-ghost {
+    @apply btn text-ink-2 hover:text-brand;
+  }
+
+  /* ─── inputs ─── */
+  .input {
+    @apply w-full rounded-lg border border-line bg-paper-2 px-3.5 py-2.5
+           text-[14px] text-ink placeholder:text-ink-4
+           transition-colors focus:border-brand focus:outline-none
+           focus:ring-2 focus:ring-brand/15
+           disabled:bg-paper-3 disabled:text-ink-3;
+  }
+  .input-error {
+    @apply border-brand focus:border-brand focus:ring-brand/20;
+  }
+
+  /* ─── icon chip — the rounded icon from the mockup ─── */
+  .chip-icon {
+    @apply flex h-10 w-10 shrink-0 items-center justify-center rounded-lg;
+  }
+
+  /* ─── labels ─── */
+  .eyebrow {
+    @apply text-[11px] font-semibold uppercase tracking-[0.07em] text-ink-3;
+  }
+
+  /* for digits that need to line up in a column */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     Legal page content — h2, bullets and tables are all styled
+     here, so no legal page has to repeat any of it.
+     ───────────────────────────────────────────────────────── */
+  .prose-legal {
+    @apply text-[14.5px] leading-[1.75] text-ink-2;
+  }
+
+  .prose-legal > section + section {
+    @apply mt-9 border-t border-line-soft pt-8;
+  }
+
+  .prose-legal h2 {
+    @apply mb-3 font-display text-[19px] font-bold leading-snug tracking-tight text-ink;
+  }
+
+  .prose-legal h3 {
+    @apply mb-2 mt-6 font-display text-[15.5px] font-bold text-ink;
+  }
+
+  .prose-legal p {
+    @apply mb-3.5;
+  }
+
+  .prose-legal a {
+    @apply font-medium text-brand underline underline-offset-2 hover:text-brand-hover;
+  }
+
+  .prose-legal strong {
+    @apply font-semibold text-ink;
+  }
+
+  .prose-legal ul,
+  .prose-legal ol {
+    @apply mb-4 flex flex-col gap-2 pl-1;
+  }
+
+  .prose-legal ul > li {
+    @apply relative pl-5;
+  }
+  /* a round brand-orange dot, in place of the default bullet */
+  .prose-legal ul > li::before {
+    content: '';
+    @apply absolute left-0 top-[0.62em] h-[6px] w-[6px] rounded-full bg-brand;
+  }
+
+  .prose-legal ol {
+    counter-reset: legal;
+  }
+  .prose-legal ol > li {
+    counter-increment: legal;
+    @apply relative pl-7;
+  }
+  .prose-legal ol > li::before {
+    content: counter(legal) '.';
+    @apply absolute left-0 top-0 font-mono text-[12.5px] font-bold text-brand;
+  }
+
+  /* a list nested inside a list */
+  .prose-legal li > ul {
+    @apply mb-0 mt-2;
+  }
+
+  .prose-legal table {
+    @apply my-5 w-full border-collapse rounded-card border border-line text-[13.5px];
+    /* A wide table scrolls inside itself instead of pushing the whole page
+       sideways on a phone. `display: block` is what makes overflow-x work on a
+       table element; width:100% from w-full still fills the space on desktop. */
+    display: block;
+    max-width: 100%;
+    overflow-x: auto;
+  }
+  .prose-legal thead tr {
+    @apply bg-paper-3;
+  }
+  .prose-legal th {
+    @apply border-b border-line px-3.5 py-2.5 text-left text-[11px]
+           font-bold uppercase tracking-[0.06em] text-ink-3;
+  }
+  .prose-legal td {
+    @apply border-b border-line-soft px-3.5 py-2.5 align-top text-ink-2;
+  }
+  .prose-legal tbody tr:last-child td {
+    @apply border-b-0;
+  }
+
+  .prose-legal blockquote {
+    @apply my-5 border-l-[3px] border-brand bg-brand-soft px-4 py-3
+           text-[13.5px] italic text-ink-2;
+  }
+
+  .prose-legal code {
+    @apply rounded border border-line bg-paper-3 px-1.5 py-0.5
+           font-mono text-[0.88em] text-ink;
+  }
+
+  .prose-legal hr {
+    @apply my-8 border-line;
+  }
+
+  /* blocks marked .not-prose opt out of every rule above */
+  .prose-legal .not-prose ul > li::before,
+  .prose-legal .not-prose ol > li::before {
+    content: none;
+  }
+  .prose-legal .not-prose ul,
+  .prose-legal .not-prose ol {
+    @apply pl-0;
+  }
+  .prose-legal .not-prose li {
+    @apply pl-0;
+  }
+
+  /* ─────────────────────────────────────────────────────────
+     ArchFacing Club — gold on deep navy.
+     The Club has its own identity in the design, separate from the
+     site's orange. These classes keep it contained.
+     ───────────────────────────────────────────────────────── */
+  .btn-gold {
+    @apply btn bg-gold text-white hover:bg-gold-hover;
+  }
+  .btn-gold-outline {
+    @apply btn border border-gold/60 bg-transparent text-gold hover:bg-gold hover:text-white;
+  }
+  /* Sits on the navy hero, so the border is white rather than gold */
+  .btn-on-navy {
+    @apply btn border border-white/25 bg-white/5 text-white hover:bg-white/10;
+  }
+
+  /* A glossy golden light-streak that sweeps across a button on a loop. */
+  .btn-shine {
+    @apply relative overflow-hidden;
+  }
+  .btn-shine::after {
+    content: '';
+    position: absolute;
+    inset: 0 auto 0 0;
+    width: 28%;
+    transform: translateX(-160%) skewX(-20deg);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 233, 150, 0.95),
+      transparent
+    );
+    animation: btn-shine 3s ease-in-out infinite;
+    pointer-events: none;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .btn-shine::after {
+      animation: none;
+    }
+  }
+
+  .pill-gold {
+    @apply pill bg-gold-soft text-gold;
+  }
+  /* The category tag that sits on an event photograph */
+  .pill-on-photo {
+    @apply pill bg-gold text-[10px] uppercase tracking-[0.09em] text-white;
+  }
+
+  .club-section-title {
+    @apply font-display text-[15px] font-bold uppercase tracking-[0.09em] text-ink;
+  }
+
+  /* The gold link-button at the right of a Club section heading */
+  .club-more {
+    @apply inline-flex items-center gap-1.5 rounded-lg border border-line bg-paper-2
+           px-3.5 py-2 text-[12.5px] font-semibold text-ink-2
+           transition-colors hover:border-gold hover:text-gold;
+  }
+
+  /* ─── pills ─── */
+  .pill {
+    @apply inline-flex items-center rounded-pill px-2.5 py-0.5
+           text-[11px] font-semibold;
+  }
+  .pill-brand {
+    @apply pill bg-brand-soft text-brand;
+  }
+  .pill-ok {
+    @apply pill bg-ok-soft text-ok;
+  }
+  .pill-info {
+    @apply pill bg-info-soft text-info;
+  }
+  .pill-warn {
+    @apply pill bg-warn-soft text-warn;
+  }
+  .pill-muted {
+    @apply pill bg-paper-3 text-ink-3;
+  }
+}
+
+@layer utilities {
+  /**
+   * A scroll area with no visible scrollbar.
+   *
+   * Used by the product page's middle column, which is a fixed-height window
+   * onto a list that can run much longer than the gallery beside it. The
+   * content is still reached by scrolling — wheel, trackpad, touch and
+   * keyboard all work — the track just is not drawn.
+   */
+  .no-scrollbar {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  /**
+   * Admin motion — a quiet entrance for command-center sections. Each `.rise`
+   * fades up 8px; `.rise-1`…`.rise-6` stagger siblings by 60ms. Guarded for
+   * users who prefer reduced motion.
+   */
+  .rise {
+    animation: af-rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+  .rise-1 { animation-delay: 0.05s; }
+  .rise-2 { animation-delay: 0.11s; }
+  .rise-3 { animation-delay: 0.17s; }
+  .rise-4 { animation-delay: 0.23s; }
+  .rise-5 { animation-delay: 0.29s; }
+  .rise-6 { animation-delay: 0.35s; }
+
+  /* A row that slides 2px right and tints on hover — list micro-interaction. */
+  .row-hover {
+    transition: background-color 0.15s ease, transform 0.18s cubic-bezier(0.22, 1, 0.36, 1);
+  }
+  .row-hover:hover {
+    background-color: theme('colors.paper.2');
+    transform: translateX(2px);
+  }
+
+  /* Loading skeleton shimmer — used by admin loading.tsx placeholders. */
+  .skel {
+    background: linear-gradient(100deg, theme('colors.paper.3') 30%, theme('colors.paper.2') 50%, theme('colors.paper.3') 70%);
+    background-size: 200% 100%;
+    animation: af-shimmer 1.3s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rise { animation: none; }
+    .row-hover, .row-hover:hover { transform: none; }
+    .skel { animation: none; }
+  }
+}
+
+@keyframes af-shimmer {
+  from { background-position: 200% 0; }
+  to { background-position: -200% 0; }
+}
+
+/* Full-width trusted-brands marquee — the track holds two copies of the logos,
+   so translating it by -50% loops seamlessly. */
+@keyframes af-marquee {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+.af-marquee-track {
+  animation: af-marquee 32s linear infinite;
+}
+.af-marquee:hover .af-marquee-track {
+  animation-play-state: paused;
+}
+@media (prefers-reduced-motion: reduce) {
+  .af-marquee-track { animation: none; }
+}
+
+@keyframes af-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* The sweeping streak for `.btn-shine` (kept at top level, not in a layer). */
+@keyframes btn-shine {
+  0% {
+    transform: translateX(-160%) skewX(-20deg);
+  }
+  55%,
+  100% {
+    transform: translateX(320%) skewX(-20deg);
+  }
+}
+
+/*
+ * ═══════════ Admin dashboard — one desktop layout, scaled to fit ═══════════
+ *
+ * The Super-Admin dashboard is a fixed 1280-wide desktop composition. So that a
+ * tablet (or phone) shows the EXACT SAME layout — same sidebar, same columns,
+ * same panels — just smaller, the whole canvas is `zoom`-scaled in discrete
+ * steps instead of reflowing. `zoom` (unlike transform) still reflows the box,
+ * so the scaled canvas takes only its scaled width and centres cleanly.
+ *
+ * At 1280px and up the canvas is fluid and fills the screen. Below that it is
+ * pinned to 1280 and zoomed down so 1280 × zoom always fits the viewport.
+ */
+.admin-viewport {
+  overflow-x: hidden;
+}
+.admin-canvas {
+  width: 100%;
+}
+@media (max-width: 1279px) {
+  .admin-canvas {
+    width: 1280px;
+    zoom: 0.95;
+  }
+}
+@media (max-width: 1210px) {
+  .admin-canvas {
+    zoom: 0.88;
+  }
+}
+@media (max-width: 1120px) {
+  .admin-canvas {
+    zoom: 0.8;
+  }
+}
+@media (max-width: 1020px) {
+  .admin-canvas {
+    zoom: 0.72;
+  }
+}
+@media (max-width: 920px) {
+  .admin-canvas {
+    zoom: 0.64;
+  }
+}
+@media (max-width: 830px) {
+  .admin-canvas {
+    zoom: 0.58;
+  }
+}
+@media (max-width: 760px) {
+  .admin-canvas {
+    zoom: 0.54;
+  }
+}
+@media (max-width: 700px) {
+  .admin-canvas {
+    zoom: 0.48;
+  }
+}
+@media (max-width: 620px) {
+  .admin-canvas {
+    zoom: 0.42;
+  }
+}
+@media (max-width: 540px) {
+  .admin-canvas {
+    zoom: 0.36;
+  }
+}
+@media (max-width: 460px) {
+  .admin-canvas {
+    zoom: 0.3;
+  }
+}
+@media (max-width: 390px) {
+  .admin-canvas {
+    zoom: 0.28;
+  }
+}
+
+/*
+ * ─── Admin accent = blue (scoped) ───
+ * The admin panel matches its reference's BLUE accent, while the public
+ * site keeps the ArchFacing orange brand. Scoped to `.admin-canvas` so the
+ * override never leaks out. Overrides the `brand`-token utilities only.
+ */
+.admin-canvas :is(.bg-brand, .hover\:bg-brand:hover) {
+  background-color: #2563eb !important;
+}
+.admin-canvas :is(.bg-brand-hover, .hover\:bg-brand-hover:hover) {
+  background-color: #1d4ed8 !important;
+}
+.admin-canvas .bg-brand-soft {
+  background-color: #eaf2ff !important;
+}
+.admin-canvas :is(.text-brand, .hover\:text-brand:hover, .group:hover .group-hover\:text-brand) {
+  color: #2563eb !important;
+}
+.admin-canvas :is(.border-brand, .focus\:border-brand:focus, .hover\:border-brand:hover) {
+  border-color: #2563eb !important;
+}
+.admin-canvas :is(.border-brand\/40, .hover\:border-brand\/40:hover) {
+  border-color: rgba(37, 99, 235, 0.4) !important;
+}
+.admin-canvas .accent-brand {
+  accent-color: #2563eb !important;
+}
+.admin-canvas .fill-brand {
+  fill: #2563eb !important;
+}
+.admin-canvas .ring-brand {
+  --tw-ring-color: #2563eb !important;
+}
