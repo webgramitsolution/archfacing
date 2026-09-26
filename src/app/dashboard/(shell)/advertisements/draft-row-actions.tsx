@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Icon, type IconName } from '@/components/ui'
 import { cn } from '@/lib/utils'
 import { duplicateCampaignAction, deleteDraftAction } from './[id]/actions'
-import { ConfirmDialog, type Confirm } from './[id]/campaign-actions'
+import { ConfirmDialog, type Confirm } from '@/components/confirm-dialog'
 
 /**
  * Duplicate / Delete on a draft card. They used to link to the detail page

@@ -187,6 +187,7 @@ export function DashboardHeader({
                 </div>
                 <MenuLink href="/" label="View site" icon="arrow" onGo={() => setMenu(false)} />
                 <MenuLink href="/dashboard/notifications" label="Notifications" icon="bell" onGo={() => setMenu(false)} />
+                <MenuLink href="/dashboard/settings" label="Settings" icon="settings" onGo={() => setMenu(false)} />
                 <MenuLink
                   href={messagesHref}
                   label={unreadMessages ? `Messages (${unreadMessages})` : 'Messages'}

@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui'
+import { ConfirmDialog, type Confirm } from '@/components/confirm-dialog'
 import { addVariantAction, updateVariantAction, deleteVariantAction } from '../../actions'
 
 type Variant = { id: string; label: string | null; price: number; mrp: number | null; stock: number; isActive: boolean; sku: string }
@@ -16,6 +17,8 @@ export function VariationsManager({ postId, initial, defaultTax }: { postId: str
   const [pending, start] = useTransition()
   const [editing, setEditing] = useState<string | null>(null)
   const [err, setErr] = useState<string | null>(null)
+  // Delete asks first — it used to fire on a single click.
+  const [ask, setAsk] = useState<Confirm | null>(null)
   const [add, setAdd] = useState({ label: '', price: '', mrp: '', stock: '' })
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>) => {
@@ -39,6 +42,15 @@ export function VariationsManager({ postId, initial, defaultTax }: { postId: str
 
   return (
     <div className="rise rise-1 rounded-card border border-line bg-white shadow-card">
+      {ask && (
+        <ConfirmDialog
+          confirm={ask}
+          busy={pending}
+          error={null}
+          onCancel={() => setAsk(null)}
+          onConfirm={() => { const a = ask; setAsk(null); run(a.run) }}
+        />
+      )}
       <div className="flex items-center justify-between border-b border-line px-4 py-3">
         <div>
           <h2 className="font-display text-[15px] font-bold text-ink">Product Variations</h2>
@@ -65,7 +77,7 @@ export function VariationsManager({ postId, initial, defaultTax }: { postId: str
               <VariantRow key={v.id} v={v} editing={editing === v.id} pending={pending}
                 onEdit={() => setEditing(v.id)} onCancel={() => setEditing(null)}
                 onSave={(d) => run(() => updateVariantAction(v.id, d))}
-                onDelete={() => run(() => deleteVariantAction(v.id))} />
+                onDelete={() => setAsk({ title: `Delete ${v.label || 'this'} variation?`, body: 'It is removed from the product and can no longer be ordered. This cannot be undone.', confirmLabel: 'Delete Variation', cancelLabel: 'Cancel', tone: 'danger', run: () => deleteVariantAction(v.id) })} />
             ))}
 
             {/* add row */}

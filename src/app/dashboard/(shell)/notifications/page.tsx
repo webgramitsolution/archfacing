@@ -3,6 +3,7 @@ import Link from 'next/link'
 import { requireAuth } from '@/lib/guard'
 import { prisma } from '@/lib/prisma'
 import { PageTitle, EmptyState, Icon, type IconName } from '@/components/ui'
+import { SubmitButton } from '@/components/form'
 import { markAllReadAction } from './actions'
 
 export const metadata: Metadata = { title: 'Notifications' }
@@ -65,9 +66,9 @@ export default async function NotificationsPage() {
           action={
             unread > 0 ? (
               <form action={markAllReadAction}>
-                <button type="submit" className="btn-outline">
+                <SubmitButton className="btn-outline" pendingLabel="Marking…">
                   Mark all as read
-                </button>
+                </SubmitButton>
               </form>
             ) : undefined
           }

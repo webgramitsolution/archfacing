@@ -1,5 +1,6 @@
 import { prisma } from '@/lib/prisma'
 import { PageHeading } from '@/components/dashboard-shell'
+import { ConfirmSubmitButton } from '@/components/form'
 import { deleteQualificationAction } from './qualification-actions'
 import { AddQualificationForm } from './qualification-form'
 
@@ -71,7 +72,7 @@ export async function QualificationsView({ userId }: { userId: string }) {
                   <td className="px-4 py-3 text-right">
                     <form action={deleteQualificationAction}>
                       <input type="hidden" name="id" value={q.id} />
-                      <button type="submit" className="rounded-md border border-line px-2.5 py-1 text-[11.5px] font-semibold text-ink-3 hover:border-danger hover:text-danger">Remove</button>
+                      <ConfirmSubmitButton className="rounded-md border border-line px-2.5 py-1 text-[11.5px] font-semibold text-ink-3 hover:border-danger hover:text-danger" title="Remove this qualification?" body="It will be taken off your profile. You can add it again later." confirmLabel="Remove" pendingLabel="Removing…">Remove</ConfirmSubmitButton>
                     </form>
                   </td>
                 </tr>

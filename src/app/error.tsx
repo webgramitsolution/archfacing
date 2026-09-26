@@ -27,7 +27,10 @@ export default function Error({
 
   // Prisma's connection failures are P1001 (unreachable) and P1017 (dropped).
   const message = `${error.message} ${error.digest ?? ''}`
+  // The local-database help (pnpm commands) is for developers only — never
+  // shown in production, where it would expose internal tooling to visitors.
   const looksLikeDatabase =
+    process.env.NODE_ENV !== 'production' &&
     /P1001|P1017|ECONNREFUSED|Can't reach database|database server/i.test(message)
 
   return (

@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { setOrderStatusAction } from '../actions'
 import { Button, Alert, Input } from '@/components/form'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 
 /** §— an order moves in one direction only, never backwards */
 const NEXT: Record<string, { to: string; label: string; needsTracking?: boolean }[]> = {
@@ -16,12 +17,36 @@ export function OrderActions({ orderId, status }: { orderId: string; status: str
   const [error, setError] = useState<string | null>(null)
   const [tracking, setTracking] = useState('')
   const [asking, setAsking] = useState<string | null>(null)
+  // Cancelling an order asks first — it used to happen on a single click.
+  const [confirmCancel, setConfirmCancel] = useState(false)
 
   const options = NEXT[status] ?? []
   if (options.length === 0) return null
 
   return (
     <div className="border-t border-line bg-paper-3 px-4 py-3.5">
+      {confirmCancel && (
+        <ConfirmDialog
+          confirm={{
+            title: 'Cancel this order?',
+            body: 'The order is cancelled and the buyer is notified. This cannot be undone from here.',
+            confirmLabel: 'Cancel Order',
+            cancelLabel: 'Keep Order',
+            tone: 'danger',
+            run: () => setOrderStatusAction(orderId, 'CANCELLED' as never),
+          }}
+          busy={pending}
+          error={null}
+          onCancel={() => setConfirmCancel(false)}
+          onConfirm={() => {
+            setConfirmCancel(false)
+            start(async () => {
+              const r = await setOrderStatusAction(orderId, 'CANCELLED' as never)
+              if (!r.ok) setError(r.error ?? 'Could not update the order')
+            })
+          }}
+        />
+      )}
       {error && (
         <div className="mb-3">
           <Alert tone="error">{error}</Alert>
@@ -68,6 +93,7 @@ export function OrderActions({ orderId, status }: { orderId: string; status: str
               disabled={pending}
               onClick={() => {
                 setError(null)
+                if (opt.to === 'CANCELLED') { setConfirmCancel(true); return }
                 if (opt.needsTracking) setAsking(opt.to)
                 else start(async () => {
                   const r = await setOrderStatusAction(orderId, opt.to as never)

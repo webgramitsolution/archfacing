@@ -3,6 +3,7 @@
 import { useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
 import { Icon } from '@/components/ui'
+import { ConfirmDialog, type Confirm } from '@/components/confirm-dialog'
 import { createCouponAction, toggleCouponAction, deleteCouponAction } from '../actions'
 
 type Coupon = {
@@ -18,6 +19,8 @@ export function CouponsManager({ initial }: { initial: Coupon[] }) {
   const router = useRouter()
   const [pending, start] = useTransition()
   const [err, setErr] = useState<string | null>(null)
+  // Delete asks first — it used to fire on a single click.
+  const [ask, setAsk] = useState<Confirm | null>(null)
   const [f, setF] = useState({ code: '', type: 'PERCENT' as 'PERCENT' | 'FLAT', value: '', minOrder: '', maxDiscount: '', usageLimit: '', expiresAt: '' })
 
   const run = (fn: () => Promise<{ ok: boolean; error?: string }>, onOk?: () => void) => {
@@ -43,6 +46,15 @@ export function CouponsManager({ initial }: { initial: Coupon[] }) {
 
   return (
     <div className="flex flex-col gap-5 md:flex-row">
+      {ask && (
+        <ConfirmDialog
+          confirm={ask}
+          busy={pending}
+          error={null}
+          onCancel={() => setAsk(null)}
+          onConfirm={() => { const a = ask; setAsk(null); run(a.run) }}
+        />
+      )}
       {/* create form */}
       <div className="rise rise-1 w-full shrink-0 rounded-card border border-line bg-white p-4 shadow-card md:w-[320px]">
         <h2 className="font-display text-[15px] font-bold text-ink">New Coupon</h2>
@@ -135,7 +147,7 @@ export function CouponsManager({ initial }: { initial: Coupon[] }) {
                       </button>
                     </td>
                     <td className="px-2 py-3 text-right">
-                      <button type="button" aria-label={`Delete coupon ${c.code}`} onClick={() => run(() => deleteCouponAction(c.id))} disabled={pending} className="inline-flex h-7 w-7 items-center justify-center rounded-md text-ink-4 hover:bg-danger-soft hover:text-danger disabled:opacity-50"><Icon name="alert" className="h-3.5 w-3.5" /></button>
+                      <button type="button" aria-label={`Delete coupon ${c.code}`} onClick={() => setAsk({ title: `Delete coupon ${c.code}?`, body: 'Buyers will no longer be able to apply this code. This cannot be undone.', confirmLabel: 'Delete Coupon', cancelLabel: 'Cancel', tone: 'danger', run: () => deleteCouponAction(c.id) })} disabled={pending} className="inline-flex h-7 w-7 items-center justify-center rounded-md text-ink-4 hover:bg-danger-soft hover:text-danger disabled:opacity-50"><Icon name="alert" className="h-3.5 w-3.5" /></button>
                     </td>
                   </tr>
                 ))}

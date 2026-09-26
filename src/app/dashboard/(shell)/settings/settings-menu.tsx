@@ -30,9 +30,21 @@ export const SETTINGS_LINKS: SettingsLink[] = [
 
 export function SettingsMenu() {
   const pathname = usePathname()
+  // On a phone the full rail would sit above every sub-page, so on a sub-page
+  // it is replaced by a link back to the index. Tablet and desktop unchanged.
+  const onSubPage = pathname !== '/dashboard/settings'
 
   return (
-    <nav className="flex flex-col gap-1.5">
+    <>
+    {onSubPage && (
+      <Link
+        href="/dashboard/settings"
+        className="inline-flex items-center gap-1.5 text-[13px] font-semibold text-brand hover:underline md:hidden"
+      >
+        ← All settings
+      </Link>
+    )}
+    <nav aria-label="Settings" className={cn('flex flex-col gap-1.5', onSubPage && 'hidden md:flex')}>
       {SETTINGS_LINKS.map((l) => {
         const active = pathname === l.href
         return (
@@ -71,5 +83,6 @@ export function SettingsMenu() {
         )
       })}
     </nav>
+    </>
   )
 }

@@ -68,6 +68,9 @@ export function DashboardSidebar({
     .map((g) => ({ ...g, items: g.items.filter((i) => !i.soon) }))
     .filter((g) => g.items.length > 0)
 
+  const pathname = usePathname()
+  const activePath = activePathFor(pathname, visibleGroups)
+
   return (
     <aside
       data-collapsed={collapsed || undefined}
@@ -90,7 +93,7 @@ export function DashboardSidebar({
           profileHref={profileHref}
         />
 
-        <nav className={cn('flex flex-col gap-0.5 pb-6', collapsed ? 'px-2' : 'px-3')}>
+        <nav aria-label="Dashboard" className={cn('flex flex-col gap-0.5 pb-6', collapsed ? 'px-2' : 'px-3')}>
           {visibleGroups.map((group, gi) => (
             <div key={group.title ?? `g${gi}`} className={gi > 0 ? 'mt-5' : ''}>
               {group.title &&
@@ -109,12 +112,14 @@ export function DashboardSidebar({
                     key={item.href + item.label}
                     item={item}
                     collapsed={collapsed}
+                    activePath={activePath}
                   />
                 ) : (
                   <SidebarLink
                     key={item.href + item.label}
                     item={item}
                     collapsed={collapsed}
+                    active={isActive(item.href, activePath)}
                   />
                 )
               )}
@@ -254,7 +259,7 @@ function Profile({
  * hides the page they are on. Collapsed the whole thing falls back to the
  * parent link; there is no room for a sub-list beside a 72px rail.
  */
-function SidebarBranch({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
+function SidebarBranch({ item, collapsed, activePath }: { item: NavItem; collapsed: boolean; activePath: string | null }) {
   const pathname = usePathname()
   const kids = item.children ?? []
 
@@ -268,7 +273,15 @@ function SidebarBranch({ item, collapsed }: { item: NavItem; collapsed: boolean 
     if (inside) setOpen(true)
   }, [inside])
 
-  if (collapsed) return <SidebarLink item={item} collapsed />
+  // Collapsed, the parent stands for the whole branch.
+  const branchActive =
+    [item, ...kids].some((k) => isActive(k.href, activePath))
+  if (collapsed) return <SidebarLink item={item} collapsed active={branchActive} />
+
+  // The child that owns the current page — the plain link, not its `#anchor` twin.
+  const activeKid =
+    kids.find((k) => !k.href.includes('#') && isActive(k.href, activePath)) ??
+    kids.find((k) => isActive(k.href, activePath))
 
   return (
     <div>
@@ -280,6 +293,7 @@ function SidebarBranch({ item, collapsed }: { item: NavItem; collapsed: boolean 
       >
         <Link
           href={item.href}
+          aria-current={!activeKid && isActive(item.href, activePath) ? 'page' : undefined}
           className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-3 py-[7px] text-[12.5px] text-admin-text group-hover:text-white"
         >
           {item.icon && <Icon name={item.icon} className="h-[15px] w-[15px] shrink-0 opacity-80" />}
@@ -310,11 +324,14 @@ function SidebarBranch({ item, collapsed }: { item: NavItem; collapsed: boolean 
               <Link
                 href={k.soon ? '#' : k.href}
                 aria-disabled={k.soon}
+                aria-current={k === activeKid ? 'page' : undefined}
                 className={cn(
                   'flex items-center gap-2 rounded-md px-2.5 py-[5px] text-[12px] transition-colors',
                   k.soon
                     ? 'cursor-default text-admin-muted/60'
-                    : 'text-admin-muted hover:bg-admin-hover hover:text-white'
+                    : k === activeKid
+                      ? 'bg-admin-hover text-white'
+                      : 'text-admin-muted hover:bg-admin-hover hover:text-white'
                 )}
               >
                 <span className="min-w-0 flex-1 truncate">{k.label}</span>
@@ -333,11 +350,12 @@ function SidebarBranch({ item, collapsed }: { item: NavItem; collapsed: boolean 
   )
 }
 
-function SidebarLink({ item, collapsed }: { item: NavItem; collapsed: boolean }) {
+function SidebarLink({ item, collapsed, active = false }: { item: NavItem; collapsed: boolean; active?: boolean }) {
   return (
     <Link
       href={item.soon ? '#' : item.href}
       aria-disabled={item.soon}
+      aria-current={active ? 'page' : undefined}
       // collapsed, the native tooltip is the only label there is
       title={collapsed ? item.label : undefined}
       className={cn(
@@ -345,7 +363,9 @@ function SidebarLink({ item, collapsed }: { item: NavItem; collapsed: boolean })
         collapsed ? 'justify-center px-0 py-2.5' : 'gap-2.5 px-3 py-[7px]',
         item.soon
           ? 'cursor-default text-admin-muted/60'
-          : 'text-admin-text hover:bg-admin-hover hover:text-white'
+          : active
+            ? 'bg-admin-hover text-white'
+            : 'text-admin-text hover:bg-admin-hover hover:text-white'
       )}
     >
       {item.icon && (
@@ -381,4 +401,32 @@ function SidebarLink({ item, collapsed }: { item: NavItem; collapsed: boolean })
       ) : null}
     </Link>
   )
+}
+
+/** An href's path, without its #anchor or ?query. */
+function pathOf(href: string): string {
+  return href.split(/[?#]/)[0]
+}
+
+/** Does this menu href own the current page? ?query hrefs never do (see below). */
+function isActive(href: string, activePath: string | null): boolean {
+  return activePath !== null && !href.includes('?') && pathOf(href) === activePath
+}
+
+/**
+ * The page the reader is on, as the LONGEST menu path the URL falls under —
+ * the same rule as the phone tab bar (dashboard-mobile-nav.tsx). A plain
+ * prefix test would light "Dashboard" on every page beneath it. Items whose
+ * href carries a ?query are skipped: the path alone cannot tell them apart
+ * from the page they point into.
+ */
+function activePathFor(pathname: string, groups: NavGroup[]): string | null {
+  const paths = groups
+    .flatMap((g) => g.items.flatMap((i) => [i, ...(i.children ?? [])]))
+    .filter((i) => !i.soon && !i.href.includes('?') && i.href.startsWith('/'))
+    .map((i) => pathOf(i.href))
+  const hit = paths
+    .filter((p) => pathname === p || pathname.startsWith(p + '/'))
+    .sort((a, b) => b.length - a.length)[0]
+  return hit ?? null
 }

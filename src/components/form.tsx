@@ -1,7 +1,10 @@
 'use client'
 
+import { useRef, useState } from 'react'
+import { useFormStatus } from 'react-dom'
 import { cn } from '@/lib/utils'
 import { Icon } from './ui'
+import { ConfirmDialog } from './confirm-dialog'
 
 /**
  * The building blocks for forms.
@@ -101,6 +104,85 @@ export function Button({
     <button {...props} className={cn(styles, className)}>
       {children}
     </button>
+  )
+}
+
+/**
+ * A submit button for a server-action <form>: disabled while the form is
+ * submitting, with a pending label, so a double click cannot send it twice.
+ * Takes the caller's own className, so it looks exactly like the button it
+ * replaces.
+ */
+export function SubmitButton({
+  children,
+  pendingLabel = 'Working…',
+  className,
+  ...props
+}: Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, 'type'> & { pendingLabel?: string }) {
+  const { pending } = useFormStatus()
+  return (
+    <button {...props} type="submit" disabled={pending || props.disabled} aria-busy={pending || undefined} className={className}>
+      {pending ? pendingLabel : children}
+    </button>
+  )
+}
+
+/**
+ * A destructive submit for a server-action <form>. The click opens the shared
+ * ConfirmDialog first; only "confirm" submits the surrounding form, so the
+ * form and its server action are unchanged. Disabled while submitting.
+ */
+export function ConfirmSubmitButton({
+  children,
+  className,
+  title,
+  body,
+  confirmLabel,
+  cancelLabel = 'Cancel',
+  tone = 'danger',
+  pendingLabel = 'Working…',
+}: {
+  children: React.ReactNode
+  className?: string
+  title: string
+  body: string
+  confirmLabel: string
+  cancelLabel?: string
+  tone?: 'danger' | 'warn'
+  pendingLabel?: string
+}) {
+  const { pending } = useFormStatus()
+  const ref = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
+
+  return (
+    <>
+      <button ref={ref} type="button" onClick={() => setOpen(true)} disabled={pending} aria-busy={pending || undefined} className={className}>
+        {pending ? pendingLabel : children}
+      </button>
+      {open && (
+        <ConfirmDialog
+          confirm={{
+            title,
+            body,
+            confirmLabel,
+            cancelLabel,
+            tone,
+            run: async () => {
+              ref.current?.closest('form')?.requestSubmit()
+              return { ok: true }
+            },
+          }}
+          busy={pending}
+          error={null}
+          onCancel={() => setOpen(false)}
+          onConfirm={() => {
+            setOpen(false)
+            ref.current?.closest('form')?.requestSubmit()
+          }}
+        />
+      )}
+    </>
   )
 }
 

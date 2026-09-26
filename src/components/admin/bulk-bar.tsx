@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useFormStatus } from 'react-dom'
+import { ConfirmDialog } from '@/components/confirm-dialog'
 
 /**
  * The bulk-action bar for an admin table.
@@ -73,23 +74,55 @@ export function BulkBar({ choices, name = 'status' }: { choices: BulkChoice[]; n
         <span className="tabular font-medium">{count} selected</span>
       </label>
       {choices.map((c) => (
-        <BulkButton key={c.value} choice={c} name={name} disabled={count === 0} />
+        <BulkButton key={c.value} choice={c} name={name} disabled={count === 0} count={count} />
       ))}
     </div>
   )
 }
 
-function BulkButton({ choice, name, disabled }: { choice: BulkChoice; name: string; disabled: boolean }) {
+function BulkButton({ choice, name, disabled, count }: { choice: BulkChoice; name: string; disabled: boolean; count: number }) {
   const { pending } = useFormStatus()
+  const btn = useRef<HTMLButtonElement>(null)
+  // A danger choice (Suspend) asks first; the rest submit straight away.
+  const [asking, setAsking] = useState(false)
   return (
-    <button
-      type="submit"
-      name={name}
-      value={choice.value}
-      disabled={disabled || pending}
-      className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-45 ${TONE[choice.tone]}`}
-    >
-      {choice.label}
-    </button>
+    <>
+      <button
+        ref={btn}
+        type="submit"
+        name={name}
+        value={choice.value}
+        disabled={disabled || pending}
+        onClick={(e) => {
+          if (choice.tone === 'danger') {
+            e.preventDefault()
+            setAsking(true)
+          }
+        }}
+        className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[12px] font-semibold transition-opacity disabled:cursor-not-allowed disabled:opacity-45 ${TONE[choice.tone]}`}
+      >
+        {choice.label}
+      </button>
+      {asking && (
+        <ConfirmDialog
+          confirm={{
+            title: `${choice.label} ${count} selected account${count === 1 ? '' : 's'}?`,
+            body: 'This applies to every ticked row. Accounts you are not allowed to change are skipped.',
+            confirmLabel: choice.label,
+            cancelLabel: 'Cancel',
+            tone: 'danger',
+            run: async () => ({ ok: true }),
+          }}
+          busy={pending}
+          error={null}
+          onCancel={() => setAsking(false)}
+          onConfirm={() => {
+            setAsking(false)
+            // requestSubmit(button) keeps the button's name/value in the form data.
+            if (btn.current) btn.current.form?.requestSubmit(btn.current)
+          }}
+        />
+      )}
+    </>
   )
 }

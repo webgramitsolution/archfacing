@@ -1,5 +1,6 @@
 import { requireAuth } from '@/lib/guard'
 import { prisma } from '@/lib/prisma'
+import { ConfirmSubmitButton } from '@/components/form'
 import { getVerificationConfig, documentsFor, docKindFor } from '@/lib/verification-config'
 import { SettingsPanel } from '../settings-parts'
 import { UploadDocumentForm } from './upload-form'
@@ -71,7 +72,7 @@ export default async function Page() {
                   {d.status !== 'ACCEPTED' && (
                     <form action={removeMyDocumentAction}>
                       <input type="hidden" name="id" value={d.id} />
-                      <button type="submit" className="rounded-md border border-line px-2.5 py-1 text-[11.5px] font-semibold text-ink-3 hover:border-danger hover:text-danger">Remove</button>
+                      <ConfirmSubmitButton className="rounded-md border border-line px-2.5 py-1 text-[11.5px] font-semibold text-ink-3 hover:border-danger hover:text-danger" title="Remove this document?" body="The uploaded file will be withdrawn from your verification documents." confirmLabel="Remove" pendingLabel="Removing…">Remove</ConfirmSubmitButton>
                     </form>
                   )}
                 </li>

@@ -38,9 +38,15 @@ export default function GlobalError({
             The site could not start
           </h1>
           <p style={{ fontSize: 15, lineHeight: 1.6, color: '#4B5563', margin: '12px 0 0' }}>
-            Something failed before the page could be built. If you are running
-            this locally, the usual cause is the database not being up — start
-            it with <code style={{ fontFamily: 'ui-monospace, monospace' }}>pnpm pg:start</code>.
+            Something failed before the page could be built.
+            {/* Local-database help is for developers only — never in production. */}
+            {process.env.NODE_ENV !== 'production' && (
+              <>
+                {' '}If you are running this locally, the usual cause is the database
+                not being up — start it with{' '}
+                <code style={{ fontFamily: 'ui-monospace, monospace' }}>pnpm pg:start</code>.
+              </>
+            )}
           </p>
           <button
             type="button"
