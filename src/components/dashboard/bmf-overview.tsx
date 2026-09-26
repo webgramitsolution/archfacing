@@ -445,12 +445,12 @@ export async function BmfOverview({ userId }: { userId: string }) {
         {/* ─── top products + pipeline ─── */}
         <div className="grid gap-5 lg:grid-cols-2">
           {/* No "View All": a BMF has no products page (`post:product` is not
-              a BMF permission), so that link was a 404. */}
+              a BMF permission), so that link was a 404. The empty state states
+              the fact rather than inviting a BMF to list materials it cannot. */}
           <Panel title="My Top Products">
             {topProducts.length === 0 ? (
               <EmptyRow>
-                Nothing listed yet. The materials you list show up here, ordered
-                by how much interest each one draws.
+                No products on this account.
               </EmptyRow>
             ) : (
               <ul className="grid grid-cols-2 gap-3 px-5 py-4 sm:grid-cols-3 wide:grid-cols-5">

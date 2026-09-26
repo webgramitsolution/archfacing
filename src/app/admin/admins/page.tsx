@@ -290,9 +290,7 @@ function AdminTr({ a, n }: { a: AdminRow; n: number }) {
       <td className="whitespace-nowrap px-2 py-2.5 text-ink-3">{a.lastLoginAt ? ago(a.lastLoginAt) : '—'}</td>
       <td className="px-2 py-2.5">
         <div className="flex items-center justify-end text-ink-4">
-          <span className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-paper-3 hover:text-brand">
-            <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" /></svg>
-          </span>
+          <Link href={`/admin/users/${a.id}`} aria-label={`View ${a.name}`} className="flex h-7 items-center justify-center rounded-md px-2 text-[11.5px] font-semibold text-ink-3 hover:bg-paper-3 hover:text-brand">View</Link>
         </div>
       </td>
     </tr>
@@ -334,7 +332,7 @@ function Pagination({ page, pages, qs }: { page: number; pages: number; qs: (o: 
       ))}
       {to < pages && <span className="px-1 text-[11px] text-ink-4">… {pages}</span>}
       <PageLink href={page < pages ? qs({ page: String(page + 1) }) : undefined}>›</PageLink>
-      <span className="ml-2 flex h-7 items-center gap-1 rounded-md border border-line px-2 text-[11.5px] text-ink-3">10 per page</span>
+      <span className="ml-2 text-[11.5px] text-ink-3">10 per page</span>
     </div>
   )
 }

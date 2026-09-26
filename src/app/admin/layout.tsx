@@ -264,9 +264,6 @@ export default async function AdminLayout({ children }: { children: React.ReactN
                     </span>
                     <span className="block text-[11px] text-ink-3">{roleLabel}</span>
                   </span>
-                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 text-ink-4" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="m6 9 6 6 6-6" />
-                  </svg>
                   <SignOutButton className="ml-1 text-ink-3 hover:text-brand" />
                 </span>
               </div>

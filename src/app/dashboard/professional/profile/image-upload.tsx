@@ -86,24 +86,36 @@ export function ImageUpload({
           </div>
 
           {/* dashed upload box */}
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            disabled={busy}
-            className="flex min-w-[190px] flex-1 flex-col items-center justify-center gap-1 rounded-card border-2 border-dashed border-line bg-paper-2 px-4 py-4 text-center transition-colors hover:border-brand"
+          {/* Same box as before. "Remove" used to be a clickable <span> nested
+              inside the upload <button> — invalid nesting, not reachable by
+              keyboard. Now the box is a plain container (a click anywhere
+              still opens the picker), the upload control is its own button,
+              and Remove is a real button in the same place. */}
+          <div
+            onClick={() => { if (!busy) inputRef.current?.click() }}
+            className="flex min-w-[190px] flex-1 cursor-pointer flex-col items-center justify-center gap-1 rounded-card border-2 border-dashed border-line bg-paper-2 px-4 py-4 text-center transition-colors hover:border-brand"
           >
-            <Icon name="download" className="h-5 w-5 rotate-180 text-brand" />
-            <span className="text-[13px] font-semibold text-brand">{busy ? 'Uploading…' : 'Upload Photo'}</span>
-            <span className="text-[11px] text-ink-4">JPG, PNG (Max 2MB)</span>
+            <button
+              type="button"
+              onClick={(e) => { e.stopPropagation(); inputRef.current?.click() }}
+              disabled={busy}
+              className="flex flex-col items-center gap-1"
+            >
+              <Icon name="download" className="h-5 w-5 rotate-180 text-brand" />
+              <span className="text-[13px] font-semibold text-brand">{busy ? 'Uploading…' : 'Upload Photo'}</span>
+              <span className="text-[11px] text-ink-4">JPG, PNG (Max 2MB)</span>
+            </button>
             {url && (
-              <span
+              <button
+                type="button"
                 onClick={(e) => { e.stopPropagation(); remove() }}
+                disabled={busy}
                 className="mt-1 rounded-lg border border-line bg-white px-3 py-1 text-[12px] font-semibold text-ink-2 hover:border-brand hover:text-brand"
               >
                 Remove
-              </span>
+              </button>
             )}
-          </button>
+          </div>
         </div>
         <p className="mt-1.5 text-[11.5px] text-ink-3">A clear professional photo helps build trust.</p>
         {error && <p className="mt-1 text-[11px] font-medium text-brand">{error}</p>}

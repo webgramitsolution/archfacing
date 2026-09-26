@@ -112,7 +112,7 @@ export function ProfileView({ d }: { d: ProfileViewData }) {
                 <Stat value={d.stats.products.toLocaleString('en-IN')} label="Products" />
                 <Stat value={d.stats.projects.toLocaleString('en-IN')} label="Projects" />
                 <Stat value={d.stats.rating ? String(d.stats.rating) : '—'} label={d.stats.rating ? `(${d.stats.reviewCount} Reviews)` : 'No reviews'} star />
-                <Stat value={d.stats.views.toLocaleString('en-IN')} label="Profile Views" />
+                <Stat value={d.stats.views.toLocaleString('en-IN')} label="Posting Views" />
               </div>
               <div className="flex flex-wrap items-center gap-2.5">
                 <Link href={d.editHref} className="inline-flex items-center gap-2 rounded-lg bg-navy px-5 py-2.5 text-[13px] font-bold text-white transition-opacity hover:opacity-90">
@@ -208,11 +208,13 @@ export function ProfileView({ d }: { d: ProfileViewData }) {
                 <h3 className="font-display text-[14px] font-bold text-ink">Get in Touch</h3>
               </div>
               <p className="mt-0.5 text-[11.5px] text-ink-3">Let&apos;s discuss your project requirements.</p>
+              {/* A preview of the buttons visitors see on the public profile —
+                  not actions for the owner, so they are marked disabled. */}
               <div className="mt-3 flex flex-col gap-2">
-                <span className="inline-flex cursor-default items-center justify-center gap-2 rounded-lg bg-brand py-2.5 text-[13px] font-bold text-white opacity-95">
+                <span aria-disabled="true" className="inline-flex cursor-default items-center justify-center gap-2 rounded-lg bg-brand py-2.5 text-[13px] font-bold text-white opacity-95">
                   <Icon name="mail" className="h-4 w-4" /> Send Enquiry
                 </span>
-                <span className="inline-flex cursor-default items-center justify-center gap-2 rounded-lg border border-line bg-white py-2.5 text-[13px] font-semibold text-ink">
+                <span aria-disabled="true" className="inline-flex cursor-default items-center justify-center gap-2 rounded-lg border border-line bg-white py-2.5 text-[13px] font-semibold text-ink">
                   <Icon name="phone" className="h-4 w-4" /> Request a Call Back
                 </span>
               </div>
@@ -381,7 +383,7 @@ function Featured({ id, icon, title, viewAll, items, empty }: { id: string; icon
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand-soft text-brand"><Icon name={icon} className="h-4 w-4" /></span>
           <h2 className="font-display text-[16px] font-bold text-ink">{title}</h2>
         </div>
-        <span className="shrink-0 text-[12px] font-semibold text-brand">View All →</span>
+        <Link href={viewAll} className="shrink-0 text-[12px] font-semibold text-brand hover:underline">View All →</Link>
       </div>
       {items.length === 0 ? (
         <p className="mt-4 text-[12.5px] text-ink-3">{empty}</p>

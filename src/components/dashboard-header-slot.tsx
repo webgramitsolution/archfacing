@@ -85,7 +85,7 @@ function actionsFor(role: Role, base: string): { label: string; href: string }[]
       ]
     case 'CLIENT':
       return [
-        { label: 'Post Requirement', href: `${base}/competition` },
+        { label: 'Post Competition', href: `${base}/competition` },
         { label: 'Post Artistry', href: `${base}/artistry` },
       ]
     default:

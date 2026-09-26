@@ -145,6 +145,8 @@ export function DashboardHeader({
             type="button"
             onClick={() => setMenu((m) => !m)}
             aria-expanded={menu}
+            aria-haspopup="menu"
+            aria-label="Account menu"
             className="flex items-center gap-2.5 rounded-lg py-1 pl-1 pr-1.5 transition-colors hover:bg-paper-3"
           >
             <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-brand text-[13px] font-bold text-white">

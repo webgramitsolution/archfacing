@@ -87,7 +87,8 @@ export default async function AdminNotificationsPage({
               const l = look(n.type)
               return (
                 <li key={n.id}>
-                  <Link href={`/admin/notifications/open?id=${n.id}`} className="row-hover flex items-start gap-3 rounded-lg px-2 py-3">
+                  {/* No prefetch: opening this route marks the notification read. */}
+                  <Link href={`/admin/notifications/open?id=${n.id}`} prefetch={false} className="row-hover flex items-start gap-3 rounded-lg px-2 py-3">
                     <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: l.bg, color: l.fg }}>
                       <Icon name={l.icon} className="h-4 w-4" />
                     </span>

@@ -75,7 +75,7 @@ export default async function RolePermissionsPage({ searchParams }: { searchPara
       </section>
 
       <section className="grid grid-cols-[1.5fr_1fr_1fr] gap-5">
-        <Panel title="Role Assignment Trend" action={<span className="flex items-center gap-1.5 rounded-lg border border-line bg-paper-2 px-2.5 py-1.5 text-[11.5px] font-medium text-ink-2">Last 30 Days</span>}>
+        <Panel title="Role Assignment Trend" action={<span className="text-[11.5px] font-medium text-ink-3">Last 30 days</span>}>
           <AreaTrendChart labels={overview.trend.labels} points={overview.trend.points} color="#6366F1" everyNthLabel={4} />
         </Panel>
         <Panel title="Users by Role">

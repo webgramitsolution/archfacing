@@ -212,7 +212,7 @@ export function Pagination({
       ))}
       {to < pages && <span className="px-1 text-[11px] text-ink-4">… {pages}</span>}
       <PageArrow href={page < pages ? makeHref(page + 1) : undefined}>›</PageArrow>
-      <span className="ml-2 flex h-7 items-center gap-1 rounded-md border border-line px-2 text-[11.5px] text-ink-3">
+      <span className="ml-2 text-[11.5px] text-ink-3">
         {perPageLabel}
       </span>
     </div>

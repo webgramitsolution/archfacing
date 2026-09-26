@@ -12,5 +12,5 @@ export default async function HelpPage() {
     .catch(() => 0)
 
   const [email, phone] = await Promise.all([supportEmail(), supportPhone()])
-  return <HelpView openTickets={openTickets} supportEmail={email} supportPhone={phone} />
+  return <HelpView openTickets={openTickets} supportEmail={email} supportPhone={phone} role={user.role} />
 }

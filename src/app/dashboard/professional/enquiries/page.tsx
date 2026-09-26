@@ -35,7 +35,7 @@ export default async function Page({
             plus direct enquiries on your listings — will appear here as a chat.
           </p>
           <Link
-            href="/dashboard/professional/pact"
+            href="/dashboard/professional/profile/edit?tab=pact"
             className="mt-4 inline-block text-[13px] font-medium text-brand hover:underline"
           >
             View your PACTs →

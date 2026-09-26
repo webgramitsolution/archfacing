@@ -38,7 +38,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
 
       <div className="flex flex-col gap-5 md:flex-row">
         {/* left — product info */}
-        <div className="w-full shrink-0 space-y-4 lg:w-[320px]">
+        <div className="w-full shrink-0 space-y-4 md:w-[320px]">
           <div className="rise rise-1 rounded-card border border-line bg-white p-4 shadow-card">
             <div className="grid grid-cols-3 gap-2">
               {p.media.slice(0, 6).map((m) => (

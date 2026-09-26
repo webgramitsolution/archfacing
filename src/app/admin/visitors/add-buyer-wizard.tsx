@@ -1,5 +1,6 @@
 'use client'
 
+import { LabeledField } from '@/components/admin/labeled-field'
 import { useState } from 'react'
 import { useActionState } from 'react'
 import Link from 'next/link'
@@ -285,7 +286,7 @@ export function AddBuyerWizard({
 // ── helpers ─────────────────────────────────────────────────
 function Panel({ show, children }: { show: boolean; children: React.ReactNode }) { return <div className={show ? 'space-y-4' : 'hidden'}>{children}</div> }
 function Grid({ children }: { children: React.ReactNode }) { return <div className="grid grid-cols-2 gap-4">{children}</div> }
-function F({ label: l, children }: { label: React.ReactNode; children: React.ReactNode }) { return <div><label className={labelCls}>{l}</label>{children}</div> }
+function F({ label: l, children }: { label: React.ReactNode; children: React.ReactNode }) { return <LabeledField label={l} labelClassName={labelCls}>{children}</LabeledField> }
 function Select({ name, children }: { name?: string; children: React.ReactNode }) { return <select name={name} className={field}>{children}</select> }
 function Sub({ children }: { children: React.ReactNode }) { return <h3 className="border-t border-line-soft pt-4 font-display text-[13px] font-bold text-ink">{children}</h3> }
 function TypeCard({ active, onClick, label }: { active: boolean; onClick: () => void; label: string }) {

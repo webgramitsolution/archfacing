@@ -76,6 +76,7 @@ export function FilterBar({
         value={params.get('type') ?? ''}
         onChange={(v) => push({ type: v })}
         all="All Types"
+        label="Filter by ad type"
         options={types.map((t) => ({ value: t.slug, label: t.name }))}
       />
 
@@ -83,6 +84,7 @@ export function FilterBar({
         value={params.get('placement') ?? ''}
         onChange={(v) => push({ placement: v })}
         all="All Placements"
+        label="Filter by placement"
         options={placements.map((p) => ({ value: p.slug, label: p.name }))}
       />
 
@@ -90,6 +92,7 @@ export function FilterBar({
         value={params.get('sort') ?? ''}
         onChange={(v) => push({ sort: v })}
         all={sortOptions[0]?.label ?? 'Newest First'}
+        label="Sort campaigns"
         options={sortOptions.slice(1)}
       />
     </div>
@@ -101,14 +104,17 @@ function Select({
   onChange,
   all,
   options,
+  label,
 }: {
   value: string
   onChange: (v: string) => void
   all: string
+  label: string
   options: { value: string; label: string }[]
 }) {
   return (
     <select
+      aria-label={label}
       value={value}
       onChange={(e) => onChange(e.target.value)}
       className="input h-10 w-auto min-w-[9.5rem] py-0 text-[13px]"

@@ -249,7 +249,7 @@ function StudentTr({ s, n }: { s: StudentTableRow; n: number }) {
       <td className="px-2 py-2.5"><span className="inline-flex items-center gap-1 text-ink-2"><Icon name="map" className="h-3 w-3 text-ink-4" />{s.location}</span></td>
       <td className="px-2 py-2.5"><span className={`inline-flex items-center rounded-pill px-2 py-0.5 text-[10.5px] font-semibold ${st.cls}`}>{st.label}</span></td>
       <td className="whitespace-nowrap px-2 py-2.5 text-ink-2">{fmtDate(s.createdAt)}</td>
-      <td className="px-2 py-2.5"><div className="flex items-center justify-end text-ink-4"><span className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-paper-3 hover:text-brand"><svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor"><circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" /></svg></span></div></td>
+      <td className="px-2 py-2.5"><div className="flex items-center justify-end text-ink-4"><Link href={`/admin/users/${s.id}`} aria-label={`View ${s.name}`} className="flex h-7 items-center justify-center rounded-md px-2 text-[11.5px] font-semibold text-ink-3 hover:bg-paper-3 hover:text-brand">View</Link></div></td>
     </tr>
   )
 }
@@ -279,7 +279,7 @@ function Pagination({ page, pages, qs }: { page: number; pages: number; qs: (o: 
       {nums.map((nn) => <Link key={nn} href={qs({ page: String(nn) })} className={'tabular flex h-7 min-w-7 items-center justify-center rounded-md px-1.5 text-[12px] font-medium ' + (nn === page ? 'bg-brand text-white' : 'text-ink-2 hover:bg-paper-3')}>{nn}</Link>)}
       {to < pages && <span className="px-1 text-[11px] text-ink-4">… {pages.toLocaleString('en-IN')}</span>}
       <PageLink href={page < pages ? qs({ page: String(page + 1) }) : undefined}>›</PageLink>
-      <span className="ml-2 flex h-7 items-center gap-1 rounded-md border border-line px-2 text-[11.5px] text-ink-3">10 per page</span>
+      <span className="ml-2 text-[11.5px] text-ink-3">10 per page</span>
     </div>
   )
 }

@@ -244,7 +244,7 @@ export function LeadsWorkspace({
                     {active.buyer.city && <span className="flex items-center gap-1"><Icon name="map" className="h-3 w-3" />{active.buyer.city}{active.buyer.state ? `, ${active.buyer.state}` : ''}</span>}
                   </p>
                 </div>
-                <button type="button" onClick={() => toggleStar(active.id, starred, setStarred)}
+                <button type="button" onClick={() => toggleStar(active.id, starred, setStarred)} aria-label={starred.has(active.id) ? "Unstar this lead" : "Star this lead"} aria-pressed={starred.has(active.id)}
                   className={cn('flex h-8 w-8 items-center justify-center rounded-lg border border-line', starred.has(active.id) ? 'text-brand' : 'text-ink-3 hover:text-brand')}>
                   <Icon name="star" className="h-4 w-4" />
                 </button>

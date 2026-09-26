@@ -496,7 +496,8 @@ export async function ProOverview({
         <RailCard
           title="Your PACT Area"
           action={
-            <Link href={`${base}/pact`} className="text-[11.5px] font-semibold text-brand hover:underline">
+            // Held PACTs are managed in Edit Profile › My PACT; the /pact page only buys new ones.
+            <Link href={pact ? `${base}/profile/edit?tab=pact` : `${base}/pact`} className="text-[11.5px] font-semibold text-brand hover:underline">
               {pact ? 'Manage' : 'Buy'}
             </Link>
           }

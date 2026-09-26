@@ -1250,10 +1250,10 @@ export function StepAudience({ draft, patch, options, onBack, onContinue, busy, 
               Estimated Audience Reach
             </p>
             <p className="tabular mt-2 font-display text-[24px] font-bold leading-none text-[#4C1D95]">
-              {reach.toLocaleString('en-IN')}+
+              {reach.toLocaleString('en-IN')}
             </p>
             <p className="mt-1 text-[11px] text-[#6D28D9]">
-              Professionals in your target segment
+              Active members, scaled down by your filters
             </p>
             <p className="mt-2 text-[10.5px] leading-snug text-[#7C3AED]">
               An estimate from your targeting criteria — not a guarantee. Real
@@ -1767,7 +1767,7 @@ export function StepReview({
     <StepCard
       step={7}
       title="Review & Pay"
-      subtitle="Review your campaign details and complete the payment."
+      subtitle="Review your campaign details and the amount due, then submit it for review."
       footer={<BackButton onClick={onBack} disabled={busy} />}
     >
       <ErrorLine message={error} />
@@ -1909,7 +1909,7 @@ export function StepReview({
             disabled={busy || !accepted}
             className="btn-primary mt-4 w-full"
           >
-            {busy ? 'Submitting…' : 'Submit & Proceed to Payment'}
+            {busy ? 'Submitting…' : 'Submit for Review'}
           </button>
 
           <p className="mt-2 text-[10.5px] leading-snug text-ink-4">

@@ -1,5 +1,6 @@
 'use client'
 
+import { LabeledField } from '@/components/admin/labeled-field'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 /**
@@ -78,5 +79,5 @@ export function LeadFilters({
 const SEL = 'h-9 w-full rounded-lg border border-line bg-paper-2 px-3 text-[12.5px] text-ink-2 focus:border-brand focus:outline-none'
 
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return <div className="min-w-0 flex-1 basis-[120px]"><label className="mb-1 block text-[11px] font-medium text-ink-3">{label}</label>{children}</div>
+  return <LabeledField label={label} labelClassName="mb-1 block text-[11px] font-medium text-ink-3" className="block min-w-0 flex-1 basis-[120px]">{children}</LabeledField>
 }

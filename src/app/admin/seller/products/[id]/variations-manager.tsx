@@ -70,10 +70,10 @@ export function VariationsManager({ postId, initial, defaultTax }: { postId: str
 
             {/* add row */}
             <tr className="bg-paper-2/60 text-[12.5px]">
-              <td className="px-2 py-2.5"><input value={add.label} onChange={(e) => setAdd({ ...add, label: e.target.value })} placeholder="e.g. M / Blue" className={inp} /></td>
-              <td className="px-2 py-2.5"><input value={add.price} onChange={(e) => setAdd({ ...add, price: e.target.value })} inputMode="numeric" placeholder="0" className={`${inp} w-[80px]`} /></td>
-              <td className="px-2 py-2.5"><input value={add.mrp} onChange={(e) => setAdd({ ...add, mrp: e.target.value })} inputMode="numeric" placeholder="—" className={`${inp} w-[80px]`} /></td>
-              <td className="px-2 py-2.5"><input value={add.stock} onChange={(e) => setAdd({ ...add, stock: e.target.value })} inputMode="numeric" placeholder="0" className={`${inp} w-[70px]`} /></td>
+              <td className="px-2 py-2.5"><input aria-label="New variation label" value={add.label} onChange={(e) => setAdd({ ...add, label: e.target.value })} placeholder="e.g. M / Blue" className={inp} /></td>
+              <td className="px-2 py-2.5"><input aria-label="New variation price" value={add.price} onChange={(e) => setAdd({ ...add, price: e.target.value })} inputMode="numeric" placeholder="0" className={`${inp} w-[80px]`} /></td>
+              <td className="px-2 py-2.5"><input aria-label="New variation MRP" value={add.mrp} onChange={(e) => setAdd({ ...add, mrp: e.target.value })} inputMode="numeric" placeholder="—" className={`${inp} w-[80px]`} /></td>
+              <td className="px-2 py-2.5"><input aria-label="New variation stock" value={add.stock} onChange={(e) => setAdd({ ...add, stock: e.target.value })} inputMode="numeric" placeholder="0" className={`${inp} w-[70px]`} /></td>
               <td className="px-2 py-2.5 text-ink-4">—</td>
               <td className="px-2 py-2.5 text-right">
                 <button type="button" onClick={onAdd} disabled={pending} className="inline-flex items-center gap-1.5 rounded-lg bg-brand px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-brand-hover disabled:opacity-60"><Icon name="plus" className="h-3.5 w-3.5" /> Add</button>
@@ -106,8 +106,8 @@ function VariantRow({ v, editing, pending, onEdit, onCancel, onSave, onDelete }:
         <td className="px-2 py-2.5"><span className={`inline-flex items-center rounded-pill px-2 py-0.5 text-[10.5px] font-semibold ${v.isActive ? 'bg-ok-soft text-ok' : 'bg-paper-3 text-ink-3'}`}>{v.isActive ? 'Active' : 'Hidden'}</span></td>
         <td className="px-2 py-2.5">
           <div className="flex items-center justify-end gap-1 text-ink-4">
-            <button type="button" onClick={onEdit} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-paper-3 hover:text-brand"><Icon name="settings" className="h-3.5 w-3.5" /></button>
-            <button type="button" onClick={onDelete} disabled={pending} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-danger-soft hover:text-danger disabled:opacity-50"><Icon name="alert" className="h-3.5 w-3.5" /></button>
+            <button type="button" onClick={onEdit} aria-label={`Edit ${v.label || 'default'} variation`} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-paper-3 hover:text-brand"><Icon name="settings" className="h-3.5 w-3.5" /></button>
+            <button type="button" onClick={onDelete} disabled={pending} aria-label={`Delete ${v.label || 'default'} variation`} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-danger-soft hover:text-danger disabled:opacity-50"><Icon name="alert" className="h-3.5 w-3.5" /></button>
           </div>
         </td>
       </tr>
@@ -116,12 +116,12 @@ function VariantRow({ v, editing, pending, onEdit, onCancel, onSave, onDelete }:
 
   return (
     <tr className="bg-brand-soft/40 text-[12.5px]">
-      <td className="px-2 py-2.5"><input value={f.label} onChange={(e) => setF({ ...f, label: e.target.value })} placeholder="Label" className={inp} /></td>
-      <td className="px-2 py-2.5"><input value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} inputMode="numeric" className={`${inp} w-[80px]`} /></td>
-      <td className="px-2 py-2.5"><input value={f.mrp} onChange={(e) => setF({ ...f, mrp: e.target.value })} inputMode="numeric" className={`${inp} w-[80px]`} /></td>
-      <td className="px-2 py-2.5"><input value={f.stock} onChange={(e) => setF({ ...f, stock: e.target.value })} inputMode="numeric" className={`${inp} w-[70px]`} /></td>
+      <td className="px-2 py-2.5"><input aria-label="Variation label" value={f.label} onChange={(e) => setF({ ...f, label: e.target.value })} placeholder="Label" className={inp} /></td>
+      <td className="px-2 py-2.5"><input aria-label="Variation price" value={f.price} onChange={(e) => setF({ ...f, price: e.target.value })} inputMode="numeric" className={`${inp} w-[80px]`} /></td>
+      <td className="px-2 py-2.5"><input aria-label="Variation MRP" value={f.mrp} onChange={(e) => setF({ ...f, mrp: e.target.value })} inputMode="numeric" className={`${inp} w-[80px]`} /></td>
+      <td className="px-2 py-2.5"><input aria-label="Variation stock" value={f.stock} onChange={(e) => setF({ ...f, stock: e.target.value })} inputMode="numeric" className={`${inp} w-[70px]`} /></td>
       <td className="px-2 py-2.5">
-        <button type="button" onClick={() => setF({ ...f, isActive: !f.isActive })} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${f.isActive ? 'bg-brand' : 'bg-[#CBD5E1]'}`}><span className={`absolute h-4 w-4 rounded-full bg-white shadow transition-all ${f.isActive ? 'left-[18px]' : 'left-0.5'}`} /></button>
+        <button type="button" role="switch" aria-checked={f.isActive} aria-label="Variation active" onClick={() => setF({ ...f, isActive: !f.isActive })} className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${f.isActive ? 'bg-brand' : 'bg-[#CBD5E1]'}`}><span className={`absolute h-4 w-4 rounded-full bg-white shadow transition-all ${f.isActive ? 'left-[18px]' : 'left-0.5'}`} /></button>
       </td>
       <td className="px-2 py-2.5">
         <div className="flex items-center justify-end gap-1.5">

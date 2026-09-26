@@ -93,7 +93,7 @@ export default async function ProductListingPage() {
                     <td className="px-2 py-3">
                       <div className="flex items-center justify-end gap-1 text-ink-4">
                         <Link href={`/admin/seller/products/${p.id}`} className="flex h-7 items-center gap-1 rounded-md px-2 text-[11.5px] font-semibold hover:bg-paper-3 hover:text-brand"><Icon name="settings" className="h-3.5 w-3.5" /> Manage</Link>
-                        <Link href={`/merchandise/${p.slug}`} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-paper-3 hover:text-brand"><Icon name="eye" className="h-3.5 w-3.5" /></Link>
+                        <Link href={`/merchandise/${p.slug}`} aria-label={`View ${p.title} on the store`} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-paper-3 hover:text-brand"><Icon name="eye" className="h-3.5 w-3.5" /></Link>
                       </div>
                     </td>
                   </tr>

@@ -90,7 +90,7 @@ const PROFESSIONAL: NavGroup[] = [
       { label: 'Leads / Enquiries', href: '/dashboard/professional/enquiries', ref: '5.2.12', icon: 'users', primary: true, short: 'Leads' },
       // Direct chats from Artistry / Around Us posts — separate from leads.
       { label: 'Messages', href: '/dashboard/messages', icon: 'mail' },
-      { label: 'My Consultations (PACT)', href: '/dashboard/professional/consultations', ref: '5.2.11', icon: 'phone' },
+      { label: 'Enquiries I Sent', href: '/dashboard/professional/consultations', ref: '5.2.11', icon: 'phone' },
       { label: 'Design Competitions', href: '/dashboard/competitions', ref: '5.2.7', icon: 'star', primary: true, short: 'Compete' },
     ],
   },
@@ -163,7 +163,7 @@ const CONSULTANT: NavGroup[] = [
     items: [
       { label: 'Profile & Credentials', href: '/dashboard/consultant/profile', icon: 'user' },
       { label: 'Qualifications', href: '/dashboard/consultant/qualifications', ref: '4.3.3.2', icon: 'shield' },
-      { label: 'My Consultations', href: '/dashboard/consultant/consultations', icon: 'phone' },
+      { label: 'Enquiries I Sent', href: '/dashboard/consultant/consultations', icon: 'phone' },
       { label: 'Service Areas (PACT)', href: '/dashboard/consultant/pact', icon: 'map' },
       { label: 'Portfolio / Projects', href: '/dashboard/consultant/projects', icon: 'image', primary: true, short: 'Projects' },
       { label: 'Documents & Certificates', href: '/dashboard/settings/documents', icon: 'file' },
@@ -362,11 +362,11 @@ const CORPORATE: NavGroup[] = [
 
 /** RM Employee — not in the PDF; added per requirement */
 const EMPLOYEE: NavItem[] = [
-  { label: 'Overview', href: '/dashboard/employee' },
-  { label: 'Leads', href: '/dashboard/employee/leads' },
-  { label: 'PACT Holders', href: '/dashboard/employee/pact-holders' },
-  { label: 'Complaints', href: '/dashboard/employee/complaints' },
-  { label: 'My Profile', href: '/dashboard/settings' },
+  { label: 'Overview', href: '/dashboard/employee', icon: 'grid' },
+  { label: 'Leads', href: '/dashboard/employee/leads', icon: 'inbox' },
+  { label: 'PACT Holders', href: '/dashboard/employee/pact-holders', icon: 'map' },
+  { label: 'Complaints', href: '/dashboard/employee/complaints', icon: 'alert' },
+  { label: 'My Profile', href: '/dashboard/settings', icon: 'user' },
 ]
 
 const ADVERTISER: NavItem[] = [

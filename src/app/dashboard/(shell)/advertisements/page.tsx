@@ -108,17 +108,14 @@ export default async function MyAdvertisementsPage({
               </div>
 
               <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-card border border-line bg-paper px-3 py-1.5 text-[11.5px] font-medium text-ink-2">
-                  Last 30 Days
-                </span>
-                <span className="rounded-card border border-line bg-paper px-3 py-1.5 text-[11.5px] font-medium text-ink-2">
-                  All Campaigns
-                </span>
+                {/* The chart's fixed scope, stated as plain text — these used to
+                    be styled like dropdowns but could not be changed. */}
+                <span className="text-[11.5px] font-medium text-ink-3">Last 30 days · All campaigns</span>
                 <Link
                   href="/dashboard/advertisements/active"
                   className="text-[11.5px] font-semibold text-brand hover:underline"
                 >
-                  View Detailed Analytics →
+                  View Active Campaigns →
                 </Link>
               </div>
             </div>
@@ -166,8 +163,8 @@ export default async function MyAdvertisementsPage({
                   type="submit"
                   className="flex items-center gap-1.5 rounded-card border border-line bg-paper px-3 py-2 text-[12px] font-semibold text-ink-2 transition-colors hover:border-brand hover:text-brand"
                 >
-                  <Icon name="settings" className="h-3.5 w-3.5" />
-                  Filters
+                  <Icon name="search" className="h-3.5 w-3.5" />
+                  Search
                 </button>
               </form>
             </div>
@@ -320,11 +317,7 @@ export default async function MyAdvertisementsPage({
         <aside className="grid min-w-0 content-start gap-4 md:grid-cols-2 lg:grid-cols-1">
           <RailCard
             title="Audience Reach"
-            action={
-              <span className="shrink-0 rounded-card border border-line px-2.5 py-1 text-[11px] font-medium text-ink-2">
-                By Location
-              </span>
-            }
+            action={<span className="shrink-0 text-[11px] font-medium text-ink-3">By location</span>}
           >
             <AudienceMap rows={locations} />
           </RailCard>

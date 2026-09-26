@@ -3,6 +3,7 @@ import Image from 'next/image'
 import { prisma } from '@/lib/prisma'
 import { Icon, type IconName } from '@/components/ui'
 import { getActiveMembership } from '@/lib/club'
+import { sellerHrefFor } from '@/lib/seller'
 import {
   PROFILE_STRENGTH_SELECT, corporateStrengthOf, strengthNote,
 } from '@/lib/profile-strength'
@@ -76,6 +77,9 @@ export async function CorporateOverview({ userId }: { userId: string }) {
   const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1)
 
   const mine = { authorId: userId, deletedAt: null }
+
+  // The company's own storefront; until it has one, the profile editor.
+  const publicHref = (await sellerHrefFor(userId)) ?? `${base}/profile`
 
   const [
     user, membership, products, projects, enquiries, notes, areaCounts,
@@ -607,7 +611,7 @@ export async function CorporateOverview({ userId }: { userId: string }) {
             {strengthNote(completion)}
           </p>
           <Link
-            href="/designers-associates"
+            href={publicHref}
             className="mt-2.5 inline-flex items-center gap-1 text-[12px] font-semibold text-brand hover:gap-1.5"
           >
             <Icon name="search" className="h-3.5 w-3.5" />

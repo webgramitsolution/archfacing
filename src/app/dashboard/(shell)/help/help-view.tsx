@@ -20,9 +20,12 @@ const CATEGORIES: { icon: IconName; tint: string; title: string; sub: string; hr
   { icon: 'settings', tint: 'bg-info-soft text-info', title: 'Technical Support', sub: 'Fix technical issues', href: '#contact' },
 ]
 
+/** Placeholder href on the PACT article; HelpView swaps in the reader's own page. */
+const PACT_ARTICLE_HREF = '/pact'
+
 const ARTICLES: { icon: IconName; tint: string; title: string; sub: string; href: string }[] = [
   { icon: 'box', tint: 'bg-info-soft text-info', title: 'How to post a new project', sub: 'Step-by-step guide to create and publish a project.', href: '/dashboard/professional/projects/new' },
-  { icon: 'chart', tint: 'bg-pact-soft text-pact', title: 'How Consultant PACT works', sub: 'Learn how to buy PACT and receive leads.', href: '/dashboard/professional/pact' },
+  { icon: 'chart', tint: 'bg-pact-soft text-pact', title: 'How Consultant PACT works', sub: 'Learn how to buy PACT and receive leads.', href: PACT_ARTICLE_HREF },
   { icon: 'award', tint: 'bg-gold-soft text-gold', title: 'How to upgrade or change your plan?', sub: 'Manage your membership and billing.', href: '/dashboard/membership' },
   { icon: 'bag', tint: 'bg-brand-soft text-brand', title: 'How to add products and services', sub: 'List your products and services to get more enquiries.', href: '/dashboard/professional/products/new' },
   { icon: 'shield', tint: 'bg-info-soft text-info', title: 'How to verify your account?', sub: 'Complete KYC and get verified badge.', href: '/dashboard/professional/profile/edit' },
@@ -73,16 +76,27 @@ const norm = (s: string) => s.toLowerCase()
 //  Page
 // ──────────────────────────────────────────────────────────────
 
-export function HelpView({ openTickets, supportEmail, supportPhone }: { openTickets: number; supportEmail: string; supportPhone: string }) {
+/**
+ * The PACT article links to the reader's own buy page. Only these roles have
+ * one (`/dashboard/<role>/pact`); everyone else gets the public PACT page.
+ * It used to point every role at the professional page, which a consultant or
+ * BMF is not allowed to open.
+ */
+function pactHelpHref(role: string): string {
+  if (role === 'PROFESSIONAL' || role === 'CONSULTANT' || role === 'BMF') return `/dashboard/${role.toLowerCase()}/pact`
+  return '/pact'
+}
+
+export function HelpView({ openTickets, supportEmail, supportPhone, role }: { openTickets: number; supportEmail: string; supportPhone: string; role: string }) {
   const CONTACTS = useMemo(() => contactsFor(supportEmail, supportPhone), [supportEmail, supportPhone])
   const [query, setQuery] = useState('')
   const [ticketOpen, setTicketOpen] = useState(false)
 
   const q = norm(query.trim())
-  const articles = useMemo(
-    () => (q ? ARTICLES.filter((a) => norm(a.title + ' ' + a.sub).includes(q)) : ARTICLES),
-    [q]
-  )
+  const articles = useMemo(() => {
+    const list = ARTICLES.map((a) => (a.href === PACT_ARTICLE_HREF ? { ...a, href: pactHelpHref(role) } : a))
+    return q ? list.filter((a) => norm(a.title + ' ' + a.sub).includes(q)) : list
+  }, [q, role])
   const faqs = useMemo(() => (q ? FAQS.filter((f) => norm(f.q + ' ' + f.a).includes(q)) : FAQS), [q])
   const searching = q.length > 0
 

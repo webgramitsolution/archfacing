@@ -1,5 +1,6 @@
 'use client'
 
+import { LabeledField } from '@/components/admin/labeled-field'
 import { useState } from 'react'
 import { useActionState } from 'react'
 import Link from 'next/link'
@@ -292,7 +293,7 @@ function Grid({ cols = 2, children }: { cols?: number; children: React.ReactNode
   return <div className={`grid gap-4 ${cols === 3 ? 'grid-cols-3' : 'grid-cols-2'}`}>{children}</div>
 }
 function Field({ label: l, children }: { label: React.ReactNode; children: React.ReactNode }) {
-  return <div><label className={label}>{l}</label>{children}</div>
+  return <LabeledField label={l} labelClassName={label}>{children}</LabeledField>
 }
 function Select({ name, children }: { name?: string; children: React.ReactNode }) {
   return <select name={name} className={field}>{children}</select>

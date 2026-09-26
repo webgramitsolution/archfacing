@@ -80,6 +80,7 @@ export function StockEditor({
                 }
                 className="rounded-lg border border-line p-1.5 text-ink-3 transition-colors hover:border-brand hover:text-brand disabled:opacity-40"
                 title="Save stock"
+                aria-label={`Save stock for ${v.label || "default"} variation`}
               >
                 <Icon
                   name={saved === v.id ? 'check' : 'plus'}
@@ -96,7 +97,9 @@ export function StockEditor({
         disabled={pending}
         onClick={() =>
           start(async () => {
-            await toggleProductAction(postId, !published)
+            setError(null)
+            const r = await toggleProductAction(postId, !published)
+            if (!r.ok) setError(r.error ?? 'Could not change this item')
           })
         }
         className="text-[12.5px] font-medium text-ink-3 transition-colors hover:text-brand disabled:opacity-50"

@@ -11,6 +11,7 @@ import {
   type ReserveState,
 } from './pact-actions'
 import { Field, Input, Select, Button, Alert } from '@/components/form'
+import Link from 'next/link'
 import { formatINR } from '@/lib/utils'
 import { BUSINESS_RULES, termYears } from '@/config/permissions'
 
@@ -272,10 +273,10 @@ function PaymentStep({ state }: { state: ReserveState }) {
     return (
       <Alert tone="success">
         <strong>Your PACT is now active.</strong> Enquiries from this PIN code
-        will appear under “My Enquiry”.{' '}
-        <a href="/dashboard" className="font-medium text-brand hover:underline">
+        will appear under “Leads / Enquiries”.{' '}
+        <Link href="/dashboard" className="font-medium text-brand hover:underline">
           Go to dashboard →
-        </a>
+        </Link>
       </Alert>
     )
   }

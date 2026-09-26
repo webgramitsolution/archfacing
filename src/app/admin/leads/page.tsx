@@ -181,7 +181,7 @@ export default async function LeadsPage({ searchParams }: { searchParams: Promis
           <div className="mt-4 flex items-center justify-between gap-3">
             <p className="text-[12px] text-ink-3">Showing {start} to {end} of {list.total.toLocaleString('en-IN')} enquiries</p>
             <Pagination page={list.page} pages={list.pages} makeHref={(n) => qs({ page: String(n) })} />
-            <span className="flex items-center gap-1.5 text-[12px] text-ink-3">Rows per page <span className="flex h-8 items-center gap-1.5 rounded-lg border border-line px-2.5 font-medium text-ink-2">{list.perPage} <span className="text-[9px] text-ink-4">▼</span></span></span>
+            <span className="text-[12px] text-ink-3">{list.perPage} per page</span>
           </div>
         </section>
 
@@ -247,7 +247,7 @@ function LeadTr({ r, n, viewHref, dense }: { r: LeadRow; n: number; viewHref: st
       {!dense && <td className="whitespace-nowrap px-1 py-2 text-[9px] text-ink-3">{fmtDate(r.createdAt)}</td>}
       <td className="px-1 py-2">
         <div className="flex items-center justify-end gap-0.5 text-ink-4">
-          <Link href={viewHref} className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-paper-3 hover:text-brand"><Icon name="eye" className="h-3 w-3" /></Link>
+          <Link href={viewHref} aria-label="View enquiry" className="flex h-6 w-6 items-center justify-center rounded-md hover:bg-paper-3 hover:text-brand"><Icon name="eye" className="h-3 w-3" /></Link>
         </div>
       </td>
     </tr>

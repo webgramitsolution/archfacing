@@ -132,13 +132,13 @@ export default async function ActiveAdvertisementsPage({
         <aside className="flex min-w-0 flex-col gap-4">
           <RailCard title="Live Performance">
             <ul className="flex flex-col gap-3">
-              <Metric label="Impressions today" value={compact(Math.round(stats.impressions / 30))} />
-              <Metric label="Clicks today" value={compact(Math.round(stats.clicks / 30))} />
+              <Metric label="Impressions / day (30-day avg)" value={compact(Math.round(stats.impressions / 30))} />
+              <Metric label="Clicks / day (30-day avg)" value={compact(Math.round(stats.clicks / 30))} />
               <Metric label="Leads generated" value={compact(stats.leads)} />
               <Metric label="Click through rate" value={`${stats.ctr.toFixed(2)}%`} />
             </ul>
             <p className="mt-3 border-t border-line-soft pt-2.5 text-[10.5px] leading-snug text-ink-4">
-              Daily figures are the campaign total spread across its run. Per-day
+              Per-day figures are the running total divided by 30. Per-day
               recording arrives with the event tracker.
             </p>
           </RailCard>

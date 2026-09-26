@@ -80,8 +80,9 @@ export function ProductsTable({ products, kpis, addHref }: { products: ProductRo
     const term = q.trim().toLowerCase()
     if (term) list = list.filter((p) => [p.title, p.sku, p.category].some((v) => (v ?? '').toLowerCase().includes(term)))
     const s = [...list]
-    if (sort === 'latest') s.reverse()
-    else if (sort === 'price-hi') s.sort((a, b) => b.price - a.price)
+    // 'latest' keeps the server's order, which is already newest first
+    // (`createdAt desc` in page.tsx) — reversing it showed the oldest first.
+    if (sort === 'price-hi') s.sort((a, b) => b.price - a.price)
     else if (sort === 'price-lo') s.sort((a, b) => a.price - b.price)
     else if (sort === 'views') s.sort((a, b) => b.views - a.views)
     else if (sort === 'az') s.sort((a, b) => a.title.localeCompare(b.title))
@@ -183,7 +184,7 @@ export function ProductsTable({ products, kpis, addHref }: { products: ProductRo
                     <td className="px-3 py-3"><span className="flex items-center gap-1 text-[12px] tabular-nums text-ink-2"><Icon name="eye" className="h-3.5 w-3.5 text-ink-4" />{p.views.toLocaleString('en-IN')}</span></td>
                     <td className="px-3 py-3"><span className="flex items-center gap-1 text-[12px] tabular-nums text-ink-2"><Icon name="mail" className="h-3.5 w-3.5 text-ink-4" />{p.enquiries}</span></td>
                     <td className="px-3 py-3">
-                      <button type="button" onClick={() => toggleFeatured(p)} disabled={pending} aria-pressed={isFeatured(p)} className="relative inline-flex items-center">
+                      <button type="button" onClick={() => toggleFeatured(p)} disabled={pending} aria-pressed={isFeatured(p)} aria-label={`Feature ${p.title}`} className="relative inline-flex items-center">
                         <span className={cn('relative h-6 w-11 rounded-full transition-colors', isFeatured(p) ? 'bg-brand' : 'bg-line')}>
                           <span className={cn('absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform', isFeatured(p) && 'translate-x-5')} />
                         </span>

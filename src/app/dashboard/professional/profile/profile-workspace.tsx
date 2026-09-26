@@ -250,6 +250,8 @@ function EditorSidebar({ tab, completion, publicSlug, onComplete }: { tab: TabId
             <Icon name="file" className="h-4 w-4 text-brand" />
             <h3 className="font-display text-[13.5px] font-bold text-ink">Useful Links</h3>
           </div>
+          {/* No guide pages exist for these yet, so they stay non-clickable
+              labels (no href) in the approved styling. */}
           <ul className="mt-3 flex flex-col gap-2.5">
             {GST_LINKS.map((l) => (
               <li key={l}>
@@ -729,7 +731,7 @@ function TagField({ name, label, initial, placeholder, suggestions }: { name: st
         {tags.map((t) => (
           <span key={t} className="inline-flex items-center gap-1 rounded-full bg-info-soft px-2.5 py-1 text-[12px] font-medium text-info">
             {t}
-            <button type="button" onClick={() => setTags(tags.filter((x) => x !== t))} className="text-info/70 hover:text-info">×</button>
+            <button type="button" onClick={() => setTags(tags.filter((x) => x !== t))} aria-label={`Remove ${t}`} className="text-info/70 hover:text-info">×</button>
           </span>
         ))}
         <input
@@ -918,7 +920,7 @@ function SocialTab({ d }: { d: Data['social'] }) {
                 </div>
                 <Input id={n.key} name={n.key} defaultValue={url} error={!!state?.fieldErrors?.[n.key]} placeholder={n.placeholder} className="min-w-[180px] flex-1" />
                 <label className="relative inline-flex shrink-0 cursor-pointer items-center gap-2">
-                  <input type="checkbox" name={`show_${n.key}`} value="1" defaultChecked={shown} className="peer sr-only" />
+                  <input type="checkbox" name={`show_${n.key}`} value="1" defaultChecked={shown} aria-label={`Show ${n.label} on profile`} className="peer sr-only" />
                   <span className="relative h-6 w-11 rounded-full bg-line transition-colors peer-checked:bg-ok">
                     <span className="absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform peer-checked:translate-x-5" />
                   </span>
