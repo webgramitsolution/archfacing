@@ -1,28 +1,53 @@
 /**
  * Dual distribution — every recipient can answer, each tracks their own
  * progress, and silent PACTs fall under the 30-day cessation rule.
- * Creates throwaway rows on the dev DB and removes them. Run:
- *   npx tsx tests/lead-dual-reply.check.ts
+ * Creates throwaway @leadtest.dev users + their rows on the TEST DB and removes
+ * only those. Pincode rows are read, never written. Run:
+ *   TEST_DATABASE_URL=... npx tsx tests/lead-dual-reply.check.ts
  */
+import './_test-env.mjs'
 import { prisma } from '../src/lib/prisma'
 import { respondToEnquiry } from '../src/lib/enquiry'
 import { runCessationChecks } from '../src/lib/pact'
 
 const DAY = 86_400_000
+const DOMAIN = '@leadtest.dev'
 let fails = 0
 const ok = (c: boolean, m: string) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++ }
 
 async function main() {
-  const pros = await prisma.user.findMany({ where: { role: 'PROFESSIONAL', status: 'ACTIVE', deletedAt: null }, take: 3, select: { id: true } })
-  const client = await prisma.user.findFirst({ where: { role: 'CLIENT', deletedAt: null }, select: { id: true } })
-  const place = await prisma.pincode.findFirst({ skip: 7, select: { code: true, state: true } })
-  if (pros.length < 3 || !client || !place) throw new Error('need 3 pros, a client, a pincode')
-  const [owner, pactPro, silentPro] = pros
+  // Read-only: a PIN whose DESIGNA and CONSULTANT/test-sub seats are free.
+  const pins = await prisma.pincode.findMany({ take: 50, orderBy: { code: 'asc' }, select: { code: true, state: true } })
+  const taken = new Set((await prisma.pact.findMany({
+    where: {
+      pincode: { in: pins.map((p) => p.code) }, status: { in: ['ACTIVE', 'RESERVED'] },
+      OR: [{ serviceType: 'DESIGNA', subCategory: '-' }, { serviceType: 'CONSULTANT', subCategory: 'test-sub' }],
+    },
+    select: { pincode: true },
+  })).map((p) => p.pincode))
+  const place = pins.find((p) => !taken.has(p.code))
+  if (!place) throw new Error('no Pincode rows, or none of the first 50 has free seats — import pincodes into the test DB')
+
+  const stamp = Date.now()
+  const userIds: string[] = []
+  const mkUser = async (tag: string, role: 'PROFESSIONAL' | 'CLIENT') => {
+    const u = await prisma.user.create({
+      data: { email: `${tag}-${stamp}${DOMAIN}`, name: `Lead ${tag}`, role, status: 'ACTIVE', emailVerified: new Date() },
+      select: { id: true },
+    })
+    userIds.push(u.id)
+    return u
+  }
 
   const pacts: string[] = []
   let enquiryId = ''
   let oldEnquiryId = ''
   try {
+    const owner = await mkUser('owner', 'PROFESSIONAL')
+    const pactPro = await mkUser('pactpro', 'PROFESSIONAL')
+    const silentPro = await mkUser('silentpro', 'PROFESSIONAL')
+    const client = await mkUser('client', 'CLIENT')
+
     const pact = await prisma.pact.create({ data: { pincode: place.code, state: place.state, serviceType: 'DESIGNA', holderId: pactPro.id, status: 'ACTIVE', expiresAt: new Date(Date.now() + 200 * DAY) } })
     const silent = await prisma.pact.create({ data: { pincode: place.code, state: place.state, serviceType: 'CONSULTANT', subCategory: 'test-sub', holderId: silentPro.id, status: 'ACTIVE', expiresAt: new Date(Date.now() + 200 * DAY) } })
     pacts.push(pact.id, silent.id)
@@ -69,14 +94,19 @@ async function main() {
     ok((await prisma.pact.findUnique({ where: { id: silent.id } }))!.status === 'SUSPENDED', 'a PACT that never answered a 31-day-old lead is suspended')
     ok((await prisma.pact.findUnique({ where: { id: pact.id } }))!.status === 'ACTIVE', 'the PACT that replied stays active')
   } finally {
+    // Only this run's rows. Enquiries/lead rows/PACTs don't cascade from User, so
+    // they go first (responses cascade from Enquiry); notifications cascade with the users.
     const ids = [enquiryId, oldEnquiryId].filter(Boolean)
-    await prisma.enquiryResponse.deleteMany({ where: { enquiryId: { in: ids } } })
-    await prisma.leadRecipient.deleteMany({ where: { enquiryId: { in: ids } } })
-    await prisma.enquiry.deleteMany({ where: { id: { in: ids } } })
-    await prisma.notification.deleteMany({ where: { userId: { in: [...pros.map((p) => p.id), client.id] }, createdAt: { gte: new Date(Date.now() - 5 * 60_000) }, type: { in: ['ENQUIRY_REPLY', 'PACT_SUSPENDED'] } } })
-    await prisma.pact.deleteMany({ where: { id: { in: pacts } } })
+    const mine = { in: userIds }
+    const enqWhere = { OR: [{ id: { in: ids } }, { clientId: mine }] }
+    await prisma.enquiryResponse.deleteMany({ where: { enquiry: enqWhere } })
+    await prisma.leadRecipient.deleteMany({ where: { OR: [{ enquiry: enqWhere }, { recipientId: mine }] } })
+    await prisma.enquiry.deleteMany({ where: enqWhere })
+    await prisma.pact.deleteMany({ where: { OR: [{ id: { in: pacts } }, { holderId: mine }] } })
+    await prisma.user.deleteMany({ where: { id: mine, email: { endsWith: DOMAIN } } })
+    await prisma.$disconnect()
   }
   console.log(fails ? `${fails} FAILED` : 'all passed')
   process.exit(fails ? 1 : 0)
 }
-main()
+main().catch((e) => { console.error(e); process.exit(1) })

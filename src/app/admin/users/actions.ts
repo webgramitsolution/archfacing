@@ -12,8 +12,8 @@
 import { revalidatePath } from 'next/cache'
 import type { Role, UserStatus } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { requirePermission } from '@/lib/guard'
-import { sendMail } from '@/lib/mailer'
+import { requirePermission, accountChangeRefusal } from '@/lib/guard'
+import { sendMail, escapeHtml } from '@/lib/mailer'
 import { getVerificationConfig } from '@/lib/verification-config'
 import { GRANTABLE_KEYS, STAFF_ROLES } from '@/config/permissions'
 import { addVerificationDocument, DocError, syncDocumentCount } from '@/lib/verification-docs'
@@ -64,9 +64,16 @@ export async function verifyUserAction(userId: string) {
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, name: true, email: true, role: true },
+    select: { id: true, name: true, email: true, role: true, status: true },
   })
   if (!user) return { ok: false, error: 'User not found.' }
+  const refusal = accountChangeRefusal(admin, user)
+  if (refusal) return { ok: false, error: refusal }
+  // Verifying is not un-banning — a ban is lifted explicitly, not as a side
+  // effect of "Verify & activate".
+  if (user.status === 'BANNED') {
+    return { ok: false, error: 'This account is banned. Lift the ban before verifying it.' }
+  }
   // Notify / email toggles — Verification Settings → workflow.
   const cfg = await getVerificationConfig()
 
@@ -120,7 +127,7 @@ export async function verifyUserAction(userId: string) {
       '',
       `${appUrl}/dashboard`,
     ].join('\n'),
-    html: `<p>Hello ${user.name},</p>
+    html: `<p>Hello ${escapeHtml(user.name)},</p>
 <p>ArchFacing has reviewed your details and activated your account.</p>
 <p>You can now buy the PACT for your PIN code and post your work.</p>
 <p><a href="${appUrl}/dashboard">Open your dashboard →</a></p>`,
@@ -168,23 +175,37 @@ export async function rejectUserAction(userId: string, reason: string) {
     to: user.email,
     subject: 'ArchFacing — something is missing in your verification',
     text: `Hello ${user.name},\n\n${reason.trim()}\n\nPlease correct this and submit again.`,
-    html: `<p>Hello ${user.name},</p><p>${reason.trim()}</p><p>Please correct this and submit again.</p>`,
+    html: `<p>Hello ${escapeHtml(user.name)},</p><p>${escapeHtml(reason.trim()).replace(/\n/g, '<br>')}</p><p>Please correct this and submit again.</p>`,
   }).catch(() => {})
 
   revalidatePath('/admin/users')
   return { ok: true }
 }
 
+const SETTABLE_STATUSES: readonly UserStatus[] = ['PENDING_VERIFICATION', 'ACTIVE', 'SUSPENDED', 'BANNED']
+
 export async function setUserStatusAction(userId: string, status: UserStatus) {
   const admin = await requirePermission('admin:users')
+  // Server-action arguments come from the client — check them at runtime
+  if (!SETTABLE_STATUSES.includes(status)) return { ok: false, error: 'Unknown status.' }
 
-  await prisma.user.update({ where: { id: userId }, data: { status } })
+  const target = await prisma.user.findFirst({
+    where: { id: String(userId), deletedAt: null },
+    select: { id: true, role: true, status: true },
+  })
+  if (!target) return { ok: false, error: 'User not found.' }
+  const refusal = accountChangeRefusal(admin, target)
+  if (refusal) return { ok: false, error: refusal }
+
+  await prisma.user.update({ where: { id: target.id }, data: { status } })
   await prisma.auditLog.create({
     data: {
       actorId: admin.id,
       action: `USER_${status}`,
       entityType: 'User',
-      entityId: userId,
+      entityId: target.id,
+      before: { status: target.status },
+      after: { status },
     },
   })
 

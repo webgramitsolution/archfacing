@@ -35,7 +35,7 @@
     "db:plans": "tsx prisma/seed-plans.ts",
     "test:pact": "tsx tests/pact.test.mjs",
     "test:purchase": "tsx tests/pact-purchase.test.mjs",
-    "test": "tsx tests/video.test.mjs && tsx tests/otp.test.mjs && tsx tests/pact.test.mjs && tsx tests/pact-purchase.test.mjs && tsx tests/content.test.mjs && tsx tests/e2e-post.test.mjs && tsx tests/routing.test.mjs && tsx tests/admin.test.mjs && tsx tests/commerce.test.mjs && tsx tests/da.test.mjs && tsx tests/legal.test.mjs && tsx tests/phase9.test.mjs && tsx tests/club.test.mjs && tsx tests/content-pages.test.mjs && tsx tests/safe-next.test.mjs && tsx tests/competition-entries.test.mjs && tsx tests/blog.test.mjs",
+    "test": "pnpm test:safe && pnpm test:db",
     "test:video": "tsx tests/video.test.mjs",
     "test:content": "tsx tests/content.test.mjs",
     "test:e2e": "tsx tests/e2e-post.test.mjs",
@@ -58,11 +58,11 @@
     "test:content2": "tsx tests/content-pages.test.mjs",
     "test:safenext": "tsx tests/safe-next.test.mjs",
     "pg:status": "powershell -ExecutionPolicy Bypass -File scripts/pg-status.ps1",
-    "predev": "powershell -ExecutionPolicy Bypass -File scripts/pg-ensure.ps1",
-    "prestart": "powershell -ExecutionPolicy Bypass -File scripts/pg-ensure.ps1",
+    "predev": "node scripts/run-ps.mjs pg-ensure.ps1",
+    "prestart": "node scripts/run-ps.mjs pg-ensure.ps1",
     "test:entries": "tsx tests/competition-entries.test.mjs",
     "test:blog": "tsx tests/blog.test.mjs",
-    "prebuild": "powershell -ExecutionPolicy Bypass -File scripts/build-guard.ps1",
+    "prebuild": "node scripts/run-ps.mjs build-guard.ps1",
     "db:preview-pro": "tsx prisma/seed-preview-pro.ts",
     "db:preview-bmf": "tsx prisma/seed-preview-bmf.ts",
     "db:blog-demo": "tsx prisma/seed-blog-demo.ts",
@@ -71,7 +71,9 @@
     "db:design-associates": "tsx prisma/seed-design-associates.ts",
     "db:project-media": "tsx prisma/seed-project-media.ts",
     "db:seller-slugs": "tsx prisma/seed-seller-slugs.ts",
-    "db:product-media": "tsx prisma/seed-product-media.ts"
+    "db:product-media": "tsx prisma/seed-product-media.ts",
+    "test:safe": "tsx tests/video.test.mjs && tsx tests/safe-next.test.mjs && tsx tests/legal.test.mjs && tsx tests/blog.test.mjs && tsx tests/no-phone.check.ts",
+    "test:db": "tsx tests/otp.test.mjs && tsx tests/pact.test.mjs && tsx tests/pact-purchase.test.mjs && tsx tests/content.test.mjs && tsx tests/e2e-post.test.mjs && tsx tests/routing.test.mjs && tsx tests/admin.test.mjs && tsx tests/commerce.test.mjs && tsx tests/da.test.mjs && tsx tests/phase9.test.mjs && tsx tests/club.test.mjs && tsx tests/content-pages.test.mjs && tsx tests/competition-entries.test.mjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

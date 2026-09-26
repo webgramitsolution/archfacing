@@ -12,6 +12,7 @@
  *             however the counters drift.
  */
 
+import './_test-env.mjs'
 import fs from 'node:fs'
 import { PrismaClient } from '@prisma/client'
 import {

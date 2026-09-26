@@ -1,4 +1,5 @@
 import { requirePermission } from '@/lib/guard'
+import { csvCell } from '@/lib/csv'
 import { reportOverview } from '@/lib/admin-reports'
 
 /**
@@ -13,9 +14,7 @@ export const dynamic = 'force-dynamic'
 
 /** RFC 4180 quoting — a company name with a comma must not split a column. */
 function cell(v: string | number | null): string {
-  if (v == null) return ''
-  const s = String(v)
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  return csvCell(v)
 }
 const row = (...cells: (string | number | null)[]) => cells.map(cell).join(',')
 

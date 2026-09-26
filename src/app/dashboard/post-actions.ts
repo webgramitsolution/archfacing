@@ -165,8 +165,14 @@ function phoneTextErrors(raw: Record<string, string>): Record<string, string> {
   return errors
 }
 
-async function phoneImageErrors(formData: FormData, images: File[]): Promise<Record<string, string> | null> {
-  const plans = formData.getAll('planImages').filter((f): f is File => f instanceof File && f.size > 0)
+async function phoneImageErrors(config: PostTypeConfig, formData: FormData, images: File[]): Promise<Record<string, string> | null> {
+  // Plan drawings count only on types that take them (uploadSubmission ignores
+  // them otherwise). Over the allowed count, skip OCR — the upload step rejects
+  // the whole submission right after, so nothing unscreened is stored.
+  const plans = config.planImages
+    ? formData.getAll('planImages').filter((f): f is File => f instanceof File && f.size > 0)
+    : []
+  if (config.planImages && plans.length > config.planImages.max) return null
   const bad = await screenImagesForPhones([
     ...images.map((file, i) => ({ file, label: `Image ${i + 1}` })),
     ...plans.map((file, i) => ({ file, label: `Plan drawing ${i + 1}` })),
@@ -404,7 +410,7 @@ export async function createPostAction(
     }
   }
 
-  const contact = await phoneImageErrors(formData, imageFiles)
+  const contact = await phoneImageErrors(config, formData, imageFiles)
   if (contact) {
     return { ok: false, error: 'This listing contains a phone number, so it cannot be submitted.', fieldErrors: contact, values: raw }
   }
@@ -485,7 +491,7 @@ export async function updatePostAction(
     }
   }
 
-  const contact = await phoneImageErrors(formData, imageFiles)
+  const contact = await phoneImageErrors(config, formData, imageFiles)
   if (contact) {
     return { ok: false, error: 'This listing contains a phone number, so it cannot be submitted.', fieldErrors: contact, values: raw }
   }
@@ -625,6 +631,9 @@ export async function duplicatePostAction(postId: string) {
 /** Move a posting to a new lifecycle status (archive / restore). */
 export async function setPostStatusAction(postId: string, status: 'ARCHIVED' | 'DRAFT') {
   const user = await requireAuth()
+  // The type above is not enforced at runtime — a client could send
+  // 'PUBLISHED' and skip moderation. Only archive / restore-to-draft is allowed.
+  if (status !== 'ARCHIVED' && status !== 'DRAFT') return { ok: false, error: 'That status change is not allowed.' }
   const post = await prisma.post.findFirst({ where: { id: postId, authorId: user.id, deletedAt: null }, select: { id: true } })
   if (!post) return { ok: false, error: 'This posting does not belong to your account.' }
   await prisma.post.update({ where: { id: postId }, data: { status } })

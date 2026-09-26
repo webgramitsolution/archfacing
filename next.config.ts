@@ -57,6 +57,46 @@ const nextConfig: NextConfig = {
   },
   // Lint is run separately; don't let a style warning block a production build.
   eslint: { ignoreDuringBuilds: true },
+
+  poweredByHeader: false,
+
+  /*
+   * Security headers on every response. The CSP is Report-Only for now: it
+   * logs violations in the browser console without blocking anything, so the
+   * YouTube / Dailymotion embeds, CDN images and inline Next.js scripts keep
+   * working while the policy is tuned. Switch the key to
+   * `Content-Security-Policy` once the console is clean.
+   */
+  async headers() {
+    const csp = [
+      "default-src 'self'",
+      "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://checkout.razorpay.com",
+      "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+      "img-src 'self' data: blob: https:",
+      "font-src 'self' data: https://fonts.gstatic.com",
+      "connect-src 'self' https://api.razorpay.com https://lumberjack.razorpay.com",
+      'frame-src https://www.youtube.com https://www.youtube-nocookie.com https://www.dailymotion.com https://geo.dailymotion.com https://api.razorpay.com https://checkout.razorpay.com',
+      "media-src 'self' blob: https:",
+      "object-src 'none'",
+      "base-uri 'self'",
+      "form-action 'self'",
+      "frame-ancestors 'none'",
+    ].join('; ')
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'Content-Security-Policy-Report-Only', value: csp },
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self), payment=(self)' },
+          // Browsers ignore HSTS over plain http, so this is harmless in dev
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains' },
+        ],
+      },
+    ]
+  },
 }
 
 export default nextConfig

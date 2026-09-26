@@ -717,15 +717,23 @@ export async function releasePactForFailedPayment(paymentId: string) {
   const payment = await prisma.payment.findUnique({ where: { id: paymentId } })
   if (!payment?.referenceId) return
 
-  await prisma.$transaction([
-    prisma.payment.update({
-      where: { id: paymentId },
+  // Only a PACT payment that has not completed can be released. A PAID (or
+  // already refunded) payment must never be flipped to FAILED — that would
+  // corrupt revenue and invoices, and allow a paid renewal to be re-confirmed.
+  await prisma.$transaction(async (tx) => {
+    const { count } = await tx.payment.updateMany({
+      where: {
+        id: paymentId,
+        purpose: { in: ['PACT_PURCHASE', 'PACT_RENEWAL'] },
+        status: { in: ['CREATED', 'PENDING'] },
+      },
       data: { status: 'FAILED' },
-    }),
-    prisma.pact.deleteMany({
-      where: { id: payment.referenceId, status: 'RESERVED' },
-    }),
-  ])
+    })
+    if (count === 0) return
+    await tx.pact.deleteMany({
+      where: { id: payment.referenceId!, status: 'RESERVED' },
+    })
+  })
 }
 
 async function nextInvoiceNumber(tx: Prisma.TransactionClient): Promise<string> {

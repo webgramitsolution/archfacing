@@ -4,8 +4,7 @@ import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { z } from 'zod'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
-import { requireAuth } from '@/lib/guard'
+import { requireAuth, activeSessionUser } from '@/lib/guard'
 import {
   addToCart,
   setCartQuantity,
@@ -32,15 +31,15 @@ export async function deliveryCheckAction(pin: string): Promise<{ ok: boolean; m
 }
 
 export async function addToCartAction(variantId: string, quantity = 1) {
-  const session = await auth()
+  const user = await activeSessionUser()
   // §7.4.5 — merchandise is open to everyone, but buying needs an
   // account so the order and address stay linked
-  if (!session?.user) {
+  if (!user) {
     return { ok: false, needsLogin: true, error: 'Please sign in to make a purchase.' }
   }
 
   try {
-    await addToCart(session.user.id, variantId, quantity)
+    await addToCart(user.id, variantId, quantity)
     revalidatePath('/merchandise')
     revalidatePath('/cart')
     return { ok: true }

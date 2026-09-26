@@ -133,6 +133,12 @@ function detectType(buf: Buffer): string | null {
   return null
 }
 
+/** Fixed content types for the ZIP-based Office formats, keyed by stored extension. */
+const OFFICE_MIME: Record<string, string> = {
+  pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+}
+
 const ALLOWED_BY_KIND: Record<UploadKind, string[]> = {
   // §7.10.1 of the PDF specifies JPG; we also accept PNG/WebP because that is
   // what people actually send — we convert them to JPEG
@@ -312,7 +318,9 @@ export async function uploadFile(params: {
   const stored = await storage.put({
     key: `${folder}/${id}.${ext}`,
     body: buf,
-    mimeType: realType === 'application/zip' ? file.type || realType : realType,
+    // Never the browser's `file.type` — a ZIP-based upload labelled text/html
+    // would otherwise be served as a web page from the storage host.
+    mimeType: realType === 'application/zip' ? OFFICE_MIME[ext] ?? 'application/octet-stream' : realType,
   })
 
   await addUsage(userId, buf.byteLength)

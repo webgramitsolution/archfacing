@@ -49,8 +49,21 @@ type SendArgs = {
   text: string
 }
 
+/** Escape user-supplied text before it goes into an email's HTML. */
+export function escapeHtml(value: unknown): string {
+  return String(value ?? '').replace(/[&<>"']/g, (c) =>
+    ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!
+  )
+}
+
 export async function sendMail({ to, subject, html, text }: SendArgs) {
   if (!isMailConfigured) {
+    // Never print the body in production — it can carry a login code or a
+    // temporary password.
+    if (process.env.NODE_ENV === 'production') {
+      console.error(`SMTP is not configured — email to ${to} was not sent.`)
+      return { sent: false as const, devMode: false as const }
+    }
     console.warn(
       `\n📧 [DEV] SMTP is not configured — email was not sent.\n` +
         `   To: ${to}\n   Subject: ${subject}\n` +
@@ -156,7 +169,7 @@ export function otpEmail(code: string, purpose: 'REGISTRATION' | 'LOGIN') {
 /** Welcome email sent once registration is complete */
 export function welcomeEmail(name: string, dashboardUrl: string) {
   const html = wrap(`
-    <h1 style="margin:0 0 8px;font-size:20px;font-weight:600">Welcome to ArchFacing, ${name}</h1>
+    <h1 style="margin:0 0 8px;font-size:20px;font-weight:600">Welcome to ArchFacing, ${escapeHtml(name)}</h1>
     <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:${BRAND.ink2}">
       Your account is ready. You can now complete your profile, publish your
       work, and acquire the PACT for your PIN code to receive enquiries from
@@ -189,11 +202,11 @@ export function employeeCredentialsEmail(
   const html = wrap(`
     <h1 style="margin:0 0 8px;font-size:20px;font-weight:600">Your ArchFacing employee account</h1>
     <p style="margin:0 0 20px;font-size:14px;line-height:1.6;color:${BRAND.ink2}">
-      Hello ${name}, an ArchFacing employee account has been created for you.
+      Hello ${escapeHtml(name)}, an ArchFacing employee account has been created for you.
     </p>
     <table cellpadding="0" cellspacing="0" style="margin:0 0 20px;font-size:14px">
-      <tr><td style="padding:6px 16px 6px 0;color:${BRAND.ink3}">Email</td><td style="font-family:ui-monospace,monospace">${email}</td></tr>
-      <tr><td style="padding:6px 16px 6px 0;color:${BRAND.ink3}">Password</td><td style="font-family:ui-monospace,monospace">${password}</td></tr>
+      <tr><td style="padding:6px 16px 6px 0;color:${BRAND.ink3}">Email</td><td style="font-family:ui-monospace,monospace">${escapeHtml(email)}</td></tr>
+      <tr><td style="padding:6px 16px 6px 0;color:${BRAND.ink3}">Password</td><td style="font-family:ui-monospace,monospace">${escapeHtml(password)}</td></tr>
     </table>
     <a href="${loginUrl}" style="display:inline-block;padding:12px 22px;background:${BRAND.ink};color:${BRAND.paper};text-decoration:none;border-radius:6px;font-size:14px;font-weight:600">
       Sign in

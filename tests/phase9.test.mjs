@@ -11,6 +11,7 @@
  *             oversold.
  */
 
+import './_test-env.mjs'
 import { PrismaClient, Prisma } from '@prisma/client'
 import {
   listClubPlans, getClubPlan, clubPlanTotal, getActiveMembership,

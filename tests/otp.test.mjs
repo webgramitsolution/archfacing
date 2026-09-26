@@ -1,7 +1,8 @@
 /**
  * Phase 1 security test — OTP lifecycle and rate limits.
- *   npx tsx test-phase1.mjs
+ *   npx tsx tests/otp.test.mjs
  */
+import './_test-env.mjs'
 import { PrismaClient } from '@prisma/client'
 import { sendOtp, verifyOtp, checkVerifiedToken } from '../src/lib/otp.ts'
 

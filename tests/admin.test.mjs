@@ -8,6 +8,7 @@
  *   requirement.
  */
 
+import './_test-env.mjs'
 import { PrismaClient } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 

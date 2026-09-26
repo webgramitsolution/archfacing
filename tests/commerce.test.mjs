@@ -8,6 +8,7 @@
  *   negative.
  */
 
+import './_test-env.mjs'
 import { PrismaClient, Prisma } from '@prisma/client'
 import {
   getCart, addToCart, setCartQuantity, removeFromCart,

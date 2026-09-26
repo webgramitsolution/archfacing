@@ -8,6 +8,7 @@
  *   one territory gets sold to two people — the business is finished.
  */
 
+import './_test-env.mjs'
 import { PrismaClient } from '@prisma/client'
 import {
   pactPlanBlock, pactAllowance,
@@ -50,14 +51,37 @@ async function makeUser(email, role, extra = {}, { plan = 'gold' } = {}) {
   return u
 }
 
+const FIXTURE = { email: { endsWith: '@pacttest.dev' } }
+const RACE_PIN = '400001'
+
+// Only this test's own rows are ever removed — PACTs held by @pacttest.dev users.
 async function cleanup() {
-  await prisma.pact.deleteMany({ where: { pincode: { in: [PIN, '400001'] } } })
+  await prisma.pact.deleteMany({ where: { holder: FIXTURE } })
   await prisma.payment.deleteMany({ where: { user: { email: { contains: '@pacttest.dev' } } } })
   await prisma.notification.deleteMany({ where: { user: { email: { contains: '@pacttest.dev' } } } })
   await prisma.user.deleteMany({ where: { email: { contains: '@pacttest.dev' } } })
 }
 
 await cleanup()
+
+// The assertions below need these seats empty. Someone else's PACT is never
+// deleted to get there — cleanup() has just removed every fixture PACT, so
+// anything still live here belongs to someone else: stop and say so.
+{
+  const squatters = await prisma.pact.findMany({
+    where: {
+      pincode: { in: [PIN, RACE_PIN] },
+      status: { in: ['RESERVED', 'ACTIVE'] },
+    },
+    select: { id: true, pincode: true, serviceType: true, subCategory: true, status: true },
+  })
+  if (squatters.length) {
+    console.error(`\n✋ PINs ${PIN}/${RACE_PIN} hold ${squatters.length} non-test PACT(s); this test needs them empty and will not delete them:`)
+    for (const q of squatters) console.error(`   ${q.id} ${q.pincode} ${q.serviceType}/${q.subCategory} ${q.status}`)
+    await prisma.$disconnect()
+    process.exit(1)
+  }
+}
 
 // ═══ 1. Availability ═══
 console.log('\n── Checking availability ──')
@@ -202,7 +226,7 @@ const racers = await Promise.all(
 
 const results = await Promise.allSettled(
   racers.map((u) =>
-    reservePact({ userId: u.id, role: 'PROFESSIONAL', pincode: '400001', serviceType: 'DESIGNI' })
+    reservePact({ userId: u.id, role: 'PROFESSIONAL', pincode: RACE_PIN, serviceType: 'DESIGNI' })
   )
 )
 
@@ -218,7 +242,7 @@ check(
 )
 
 const dbRows = await prisma.pact.count({
-  where: { pincode: '400001', serviceType: 'DESIGNI', status: { in: ['RESERVED', 'ACTIVE'] } },
+  where: { pincode: RACE_PIN, serviceType: 'DESIGNI', status: { in: ['RESERVED', 'ACTIVE'] } },
 })
 check('★ there is exactly one row in the database', dbRows === 1, `(${dbRows} rows!)`)
 
@@ -226,13 +250,13 @@ check('★ there is exactly one row in the database', dbRows === 1, `(${dbRows} 
 console.log('\n── Once 15 minutes have passed ──')
 
 await prisma.pact.updateMany({
-  where: { pincode: '400001', status: 'RESERVED' },
+  where: { pincode: RACE_PIN, status: 'RESERVED', holder: FIXTURE },
   data: { reservedTill: new Date(Date.now() - 60_000) },
 })
 const released = await releaseExpiredReservations()
 check('the lapsed reservation was released', released >= 1, `(${released})`)
 
-const freeAgain = await checkAvailability('400001', 'DESIGNI')
+const freeAgain = await checkAvailability(RACE_PIN, 'DESIGNI')
 check('the seat is available again', freeAgain.seat?.available === true)
 
 // ═══ 8. Payment fail ═══

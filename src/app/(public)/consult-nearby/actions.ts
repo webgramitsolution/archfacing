@@ -4,9 +4,9 @@ import { z } from 'zod'
 import { redirect } from 'next/navigation'
 import type { PactServiceType } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { auth } from '@/lib/auth'
+import { activeSessionUser } from '@/lib/guard'
 import { findRecipient, createEnquiry } from '@/lib/enquiry'
-import { sendMail } from '@/lib/mailer'
+import { sendMail, escapeHtml } from '@/lib/mailer'
 
 /** Used to show "who will respond" on the form — changes nothing */
 export async function previewRecipientAction(
@@ -56,11 +56,11 @@ export async function submitEnquiryAction(
   _prev: EnquiryState | null,
   formData: FormData
 ): Promise<EnquiryState> {
-  const session = await auth()
+  const user = await activeSessionUser()
 
   // §5.1.2 — login is required to send an enquiry, so the reply can
   // reach the same person and to keep spam out
-  if (!session?.user) {
+  if (!user) {
     redirect('/login?next=/consult-nearby')
   }
 
@@ -93,7 +93,7 @@ export async function submitEnquiryAction(
 
   try {
     const { pactRecipients } = await createEnquiry({
-      clientId: session.user.id,
+      clientId: user.id,
       pincode: d.pincode,
       serviceType: d.serviceType,
       subCategory: d.subCategory,
@@ -102,7 +102,7 @@ export async function submitEnquiryAction(
       budget: d.budget ?? null,
       contactName: d.contactName,
       contactPhone: d.contactPhone,
-      contactEmail: d.contactEmail || session.user.email,
+      contactEmail: d.contactEmail || user.email,
     })
 
     // email every matched PACT holder — if it fails, the enquiry still stands
@@ -130,10 +130,10 @@ export async function submitEnquiryAction(
               '',
               `Reply here: ${appUrl}/dashboard`,
             ].join('\n'),
-            html: `<p>Hello ${holder.name},</p>
+            html: `<p>Hello ${escapeHtml(holder.name)},</p>
 <p>A new enquiry has come in from your PACT area.</p>
-<p><strong>${d.subject}</strong><br>PIN ${d.pincode} · ${d.contactName} · ${d.contactPhone}</p>
-<p>${d.message}</p>
+<p><strong>${escapeHtml(d.subject)}</strong><br>PIN ${escapeHtml(d.pincode)} · ${escapeHtml(d.contactName)} · ${escapeHtml(d.contactPhone)}</p>
+<p>${escapeHtml(d.message).replace(/\n/g, '<br>')}</p>
 <p><a href="${appUrl}/dashboard">Reply now →</a></p>`,
           }).catch((e) => console.error('Enquiry email failed to send:', e))
         )

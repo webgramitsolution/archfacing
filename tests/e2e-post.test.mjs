@@ -7,6 +7,7 @@
  * upload pipeline, the video link and permissions are all checked together.
  */
 
+import './_test-env.mjs'
 import { PrismaClient } from '@prisma/client'
 import sharp from 'sharp'
 import { POST_TYPES } from '../src/config/post-types.ts'

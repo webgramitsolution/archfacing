@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { prisma } from '@/lib/prisma'
 import { requireAuth } from '@/lib/guard'
+import { isPaymentLive } from '@/lib/payments'
 
 export type ChooseState = { ok: boolean; error?: string; planName?: string }
 
@@ -25,6 +26,13 @@ export async function choosePlanAction(planId: string): Promise<ChooseState> {
   }
   if (Number(plan.price) <= 0) {
     return { ok: false, error: 'The Free plan is already yours — it applies whenever no paid plan is running.' }
+  }
+
+  // The grant below takes no payment. It may only run on the mock provider in
+  // development — never in production and never once a real gateway is live,
+  // or every paid plan would be free.
+  if (process.env.NODE_ENV === 'production' || isPaymentLive()) {
+    return { ok: false, error: 'Paid plans cannot be bought online yet. Please contact ArchFacing support to upgrade.' }
   }
 
   const active = await prisma.subscription.findFirst({

@@ -17,6 +17,7 @@
  *             resolved in the same transaction.
  */
 
+import './_test-env.mjs'
 import { PrismaClient } from '@prisma/client'
 import {
   entryGate, roleMayEnter, daysToDeadline,

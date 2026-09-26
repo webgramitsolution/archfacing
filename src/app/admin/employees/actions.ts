@@ -14,7 +14,7 @@ import { z } from 'zod'
 import bcrypt from 'bcryptjs'
 import { Prisma, type Role } from '@prisma/client'
 import { prisma } from '@/lib/prisma'
-import { requirePermission } from '@/lib/guard'
+import { requirePermission, accountChangeRefusal } from '@/lib/guard'
 import { GRANTABLE_KEYS } from '@/config/permissions'
 import { addVerificationDocument, DocError } from '@/lib/verification-docs'
 import { sendMail, employeeCredentialsEmail } from '@/lib/mailer'
@@ -70,6 +70,12 @@ export async function createEmployeeAction(
   }
 
   const d = parsed.data
+
+  // Only a Super Admin creates admin-level accounts; a holder of the
+  // Employees grant may create RM employees only.
+  if (d.role !== 'RM_EMPLOYEE' && admin.role !== 'SUPER_ADMIN') {
+    return { ok: false, error: 'Only a Super Admin can create an Admin or Admin-Seller account.', values: raw }
+  }
 
   // territory — for RM Employee
   const states = (d.states ?? '')
@@ -318,6 +324,8 @@ export async function resetEmployeePasswordAction(userId: string) {
   if (!INTERNAL.includes(user.role)) {
     return { ok: false, error: 'This account is not an internal employee.' }
   }
+  const refusal = accountChangeRefusal(admin, user, { allowRmByGrant: true })
+  if (refusal) return { ok: false, error: refusal }
 
   // readable but unguessable password
   const password = `Af${randomBytes(4).toString('hex')}@${randomBytes(2).toString('hex')}`
@@ -351,9 +359,23 @@ export async function resetEmployeePasswordAction(userId: string) {
 export async function toggleEmployeeAction(userId: string, suspend: boolean) {
   const admin = await requirePermission('admin:employees')
 
+  // Only internal staff are managed here — never members, a Super Admin or
+  // yourself; admin-level accounts only by a Super Admin.
+  const target = await prisma.user.findUnique({
+    where: { id: String(userId) },
+    select: { id: true, role: true },
+  })
+  if (!target) return { ok: false, error: 'Employee not found.' }
+  const INTERNAL: Role[] = ['RM_EMPLOYEE', 'ADMIN_SELLER', 'ADMIN']
+  if (!INTERNAL.includes(target.role)) {
+    return { ok: false, error: 'This account is not an internal employee.' }
+  }
+  const refusal = accountChangeRefusal(admin, target, { allowRmByGrant: true })
+  if (refusal) return { ok: false, error: refusal }
+
   await prisma.user.update({
-    where: { id: userId },
-    data: { status: suspend ? 'SUSPENDED' : 'ACTIVE' },
+    where: { id: target.id },
+    data: { status: suspend === true ? 'SUSPENDED' : 'ACTIVE' },
   })
 
   await prisma.auditLog.create({

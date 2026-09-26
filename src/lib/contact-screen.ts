@@ -2,6 +2,7 @@ import os from 'node:os'
 import path from 'node:path'
 import sharp from 'sharp'
 import { findPhoneNumbers } from './phone-detect'
+import { UPLOAD_LIMITS } from '@/config/permissions'
 
 /**
  * Reads the text printed on listing images (OCR) and reports any phone
@@ -61,9 +62,26 @@ function fixDigits(text: string): string {
   return t
 }
 
+/** Refuse to decode anything larger than this many pixels (decompression bombs). */
+const MAX_INPUT_PIXELS = 40_000_000
+
+/**
+ * Cheap pre-check before OCR touches a file: within the IMAGE size cap and a
+ * real JPEG / PNG / WebP by its leading bytes. Anything else is skipped here —
+ * uploadFile() rejects it right after with the proper message.
+ */
+function isScreenableImage(buf: Buffer): boolean {
+  if (buf.length < 12 || buf.length > UPLOAD_LIMITS.IMAGE.maxBytes) return false
+  const jpeg = buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff
+  const png = buf[0] === 0x89 && buf[1] === 0x50 && buf[2] === 0x4e && buf[3] === 0x47
+  const webp = buf.subarray(0, 4).toString() === 'RIFF' && buf.subarray(8, 12).toString() === 'WEBP'
+  return jpeg || png || webp
+}
+
 async function prepared(buf: Buffer, invert: boolean): Promise<Buffer> {
-  let img = sharp(buf, { failOn: 'none' }).rotate().greyscale()
-  const meta = await sharp(buf, { failOn: 'none' }).metadata()
+  const opts = { failOn: 'none' as const, limitInputPixels: MAX_INPUT_PIXELS }
+  let img = sharp(buf, opts).rotate().greyscale()
+  const meta = await sharp(buf, opts).metadata()
   const w = meta.width ?? 1600
   img = img.resize({ width: w < 1000 ? 1400 : Math.min(w, 1400) })
   img = img.normalize()
@@ -100,9 +118,14 @@ export async function phonesInImage(buf: Buffer): Promise<string[]> {
 export async function screenImagesForPhones(
   files: { file: File; label: string }[]
 ): Promise<{ label: string; number: string } | null> {
-  const results = await Promise.all(
-    files.map(async (f) => ({ label: f.label, hits: await phonesInImage(Buffer.from(await f.file.arrayBuffer())) }))
-  )
-  const bad = results.find((r) => r.hits.length)
-  return bad ? { label: bad.label, number: bad.hits[0] } : null
+  // One image at a time, and only files that pass the size / type pre-check,
+  // so a large or malformed upload cannot tie up the OCR workers.
+  for (const f of files) {
+    if (f.file.size === 0 || f.file.size > UPLOAD_LIMITS.IMAGE.maxBytes) continue
+    const buf = Buffer.from(await f.file.arrayBuffer())
+    if (!isScreenableImage(buf)) continue
+    const hits = await phonesInImage(buf)
+    if (hits.length) return { label: f.label, number: hits[0] }
+  }
+  return null
 }

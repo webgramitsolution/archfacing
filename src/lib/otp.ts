@@ -24,6 +24,7 @@ const TTL_MINUTES = 10
 const MAX_ATTEMPTS = 5
 const MAX_PER_HOUR = 5
 const COOLDOWN_SECONDS = 60
+const IS_PRODUCTION = process.env.NODE_ENV === 'production'
 
 function hash(value: string): string {
   return createHash('sha256').update(value).digest('hex')
@@ -59,6 +60,13 @@ export async function sendOtp(
 
   if (!isValidEmail(email)) {
     return { ok: false, error: 'That email address does not look valid. Please check it and try again.' }
+  }
+
+  // Fail closed: in production a code that cannot be emailed is never issued
+  // (and never shown on screen — see the end of this function).
+  if (IS_PRODUCTION && !isMailConfigured) {
+    console.error('OTP refused: SMTP is not configured in production.')
+    return { ok: false, error: 'We could not send the email. Please try again in a few moments.' }
   }
 
   const now = new Date()
@@ -123,11 +131,11 @@ export async function sendOtp(
     }
   }
 
-  // When SMTP is not configured, surface the code to the UI in development
+  // When SMTP is not configured, surface the code to the UI — development only
   return {
     ok: true,
     expiresAt,
-    ...(isMailConfigured ? {} : { devCode: code }),
+    ...(!isMailConfigured && !IS_PRODUCTION ? { devCode: code } : {}),
   }
 }
 
@@ -164,9 +172,15 @@ export async function verifyOtp(
     return { ok: false, error: 'This code has expired. Please request a new one.' }
   }
 
-  if (otp.attempts >= MAX_ATTEMPTS) {
-    await prisma.otpRequest.update({
-      where: { id: otp.id },
+  // Reserve this attempt atomically BEFORE comparing, so parallel guesses
+  // cannot all read the same count and slip past the limit.
+  const reserved = await prisma.otpRequest.updateMany({
+    where: { id: otp.id, usedAt: null, attempts: { lt: MAX_ATTEMPTS } },
+    data: { attempts: { increment: 1 } },
+  })
+  if (reserved.count === 0) {
+    await prisma.otpRequest.updateMany({
+      where: { id: otp.id, usedAt: null },
       data: { usedAt: new Date() },
     })
     return { ok: false, error: 'Too many incorrect attempts. Please request a new code.' }
@@ -178,11 +192,7 @@ export async function verifyOtp(
   const matches = given.length === stored.length && timingSafeEqual(given, stored)
 
   if (!matches) {
-    const updated = await prisma.otpRequest.update({
-      where: { id: otp.id },
-      data: { attempts: { increment: 1 } },
-    })
-    const left = MAX_ATTEMPTS - updated.attempts
+    const left = MAX_ATTEMPTS - (otp.attempts + 1)
     return {
       ok: false,
       error: left > 0 ? `That code is incorrect. ${left} attempts remaining.` : 'That code is incorrect.',
@@ -256,10 +266,12 @@ export async function checkVerifiedToken(
   if (!otp) return false
 
   if (consume) {
-    await prisma.otpRequest.update({
-      where: { id: otp.id },
+    // Conditional update — of two parallel redemptions only one wins
+    const { count } = await prisma.otpRequest.updateMany({
+      where: { id: otp.id, usedAt: null },
       data: { usedAt: new Date() },
     })
+    return count === 1
   }
   return true
 }

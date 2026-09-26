@@ -7,6 +7,7 @@
  *   to post Projects, and a Client may post only Artistry and Competition.
  */
 
+import './_test-env.mjs'
 import { PrismaClient } from '@prisma/client'
 import sharp from 'sharp'
 import { can } from '../src/config/permissions.ts'

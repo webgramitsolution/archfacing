@@ -1,25 +1,45 @@
 /**
- * Scratch check for the renewal engine against the dev DB.
- * Creates a throwaway PACT on an existing holder, exercises the rules, and
- * deletes everything it made. Run: npx tsx tests/pact-renewal.check.ts
+ * Check for the renewal engine against the TEST DB.
+ * Creates two throwaway @renewtest.dev holders and their PACTs, exercises the
+ * rules, and deletes only what it made. Pincode rows are read, never written.
+ * Run: TEST_DATABASE_URL=... npx tsx tests/pact-renewal.check.ts
  */
+import './_test-env.mjs'
 import { prisma } from '../src/lib/prisma'
 import { startPactRenewal, activatePact, renewalOpen, PactError } from '../src/lib/pact'
 
 const DAY = 86_400_000
+const DOMAIN = '@renewtest.dev'
 let fails = 0
 const ok = (c: boolean, m: string) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++ }
 
 async function main() {
-  const holder = await prisma.user.findFirst({ where: { role: 'PROFESSIONAL', status: 'ACTIVE', deletedAt: null }, select: { id: true } })
-  const place = await prisma.pincode.findFirst({ select: { code: true, state: true, district: true } })
-  if (!holder || !place) throw new Error('need a holder and a pincode')
-  const free = await prisma.pact.findFirst({ where: { pincode: place.code, serviceType: 'DESIGNI', subCategory: '-', status: { in: ['ACTIVE', 'RESERVED'] } } })
-  if (free) throw new Error('test seat is occupied; pick another')
+  // Read-only: a PIN whose DESIGNI seat nobody holds, so we never touch someone else's PACT.
+  const pins = await prisma.pincode.findMany({ take: 50, orderBy: { code: 'asc' }, select: { code: true, state: true, district: true } })
+  const taken = new Set((await prisma.pact.findMany({
+    where: { pincode: { in: pins.map((p) => p.code) }, serviceType: 'DESIGNI', subCategory: '-', status: { in: ['ACTIVE', 'RESERVED'] } },
+    select: { pincode: true },
+  })).map((p) => p.pincode))
+  const place = pins.find((p) => !taken.has(p.code))
+  if (!place) throw new Error('no Pincode rows, or none of the first 50 has a free DESIGNI seat — import pincodes into the test DB')
+
+  const stamp = Date.now()
+  const userIds: string[] = []
+  const mkPro = async (tag: string) => {
+    const u = await prisma.user.create({
+      data: { email: `${tag}-${stamp}${DOMAIN}`, name: `Renew ${tag}`, role: 'PROFESSIONAL', status: 'ACTIVE', emailVerified: new Date() },
+      select: { id: true },
+    })
+    userIds.push(u.id)
+    return u
+  }
 
   const made: string[] = []
   const pay: string[] = []
   try {
+    const holder = await mkPro('holder')
+    const other = await mkPro('rival')
+
     // 1. Too early: 200 days left
     const early = await prisma.pact.create({ data: { pincode: place.code, state: place.state, city: place.district, serviceType: 'DESIGNI', holderId: holder.id, status: 'ACTIVE', purchasedAt: new Date(), expiresAt: new Date(Date.now() + 200 * DAY) } })
     made.push(early.id)
@@ -40,8 +60,7 @@ async function main() {
 
     // 3. Expired in grace, seat taken by someone else → refused
     await prisma.pact.update({ where: { id: early.id }, data: { status: 'EXPIRED', expiresAt: new Date(Date.now() - 5 * DAY) } })
-    const other = await prisma.user.findFirst({ where: { role: 'PROFESSIONAL', status: 'ACTIVE', deletedAt: null, NOT: { id: holder.id } }, select: { id: true } })
-    const rival = await prisma.pact.create({ data: { pincode: place.code, state: place.state, serviceType: 'DESIGNI', holderId: other!.id, status: 'ACTIVE', expiresAt: new Date(Date.now() + 300 * DAY) } })
+    const rival = await prisma.pact.create({ data: { pincode: place.code, state: place.state, serviceType: 'DESIGNI', holderId: other.id, status: 'ACTIVE', expiresAt: new Date(Date.now() + 300 * DAY) } })
     made.push(rival.id)
     try { await startPactRenewal(holder.id, early.id); ok(false, 'taken seat refused') } catch (e) { ok(e instanceof PactError && e.code === 'SEAT_TAKEN', 'taken seat refused') }
 
@@ -57,11 +76,15 @@ async function main() {
     await prisma.pact.update({ where: { id: early.id }, data: { status: 'EXPIRED', expiresAt: new Date(Date.now() - 40 * DAY) } })
     ok(!renewalOpen((await prisma.pact.findUnique({ where: { id: early.id } }))!), 'closed after the 30-day grace')
   } finally {
-    await prisma.notification.deleteMany({ where: { userId: holder.id, type: 'PACT_RENEWED' } })
-    await prisma.payment.deleteMany({ where: { id: { in: pay } } })
-    await prisma.pact.deleteMany({ where: { id: { in: made } } })
+    // Only this run's rows: payments/PACTs of the fixture holders (no cascade from
+    // User), then the users themselves (notifications cascade).
+    const mine = { in: userIds }
+    await prisma.payment.deleteMany({ where: { OR: [{ id: { in: pay } }, { userId: mine }] } })
+    await prisma.pact.deleteMany({ where: { OR: [{ id: { in: made } }, { holderId: mine }] } })
+    await prisma.user.deleteMany({ where: { id: mine, email: { endsWith: DOMAIN } } })
+    await prisma.$disconnect()
   }
   console.log(fails ? `${fails} FAILED` : 'all passed')
   process.exit(fails ? 1 : 0)
 }
-main()
+main().catch((e) => { console.error(e); process.exit(1) })

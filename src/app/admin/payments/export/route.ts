@@ -1,5 +1,6 @@
 import type { PaymentPurpose, PaymentStatus } from '@prisma/client'
 import { requirePermission } from '@/lib/guard'
+import { csvCell } from '@/lib/csv'
 import { prisma } from '@/lib/prisma'
 
 /** GET /admin/payments/export?status=&purpose= — the ledger as CSV, same filters as the page. */
@@ -25,7 +26,7 @@ export async function GET(req: Request) {
       user: { select: { name: true, email: true } },
     },
   })
-  const cell = (v: string) => (/[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)
+  const cell = (v: string) => csvCell(v)
   const d = (x: Date | null) => (x ? x.toISOString().slice(0, 10) : '')
   const lines = [
     'Invoice,Payment ID,Name,Email,Purpose,Status,Amount (INR),Refunded (INR),Refund reason,Gateway ID,Created,Paid',

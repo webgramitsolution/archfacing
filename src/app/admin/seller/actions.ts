@@ -193,13 +193,16 @@ export async function updateStockAction(variantId: string, stock: number) {
 
 export async function toggleProductAction(postId: string, publish: boolean) {
   await requirePermission('seller:merchandise')
-  await prisma.post.update({
-    where: { id: postId },
+  // Scoped to merchandise — this permission must not publish or archive any
+  // other member's posting.
+  const { count } = await prisma.post.updateMany({
+    where: { id: String(postId), type: 'MERCHANDISE' },
     data: {
-      status: publish ? 'PUBLISHED' : 'ARCHIVED',
-      publishedAt: publish ? new Date() : undefined,
+      status: publish === true ? 'PUBLISHED' : 'ARCHIVED',
+      publishedAt: publish === true ? new Date() : undefined,
     },
   })
+  if (count === 0) return { ok: false, error: 'Merchandise item not found.' }
   revalidatePath('/admin/seller')
   revalidatePath('/merchandise')
   return { ok: true }

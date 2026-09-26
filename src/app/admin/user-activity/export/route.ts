@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { requirePermission } from '@/lib/guard'
+import { csvCell } from '@/lib/csv'
 import { prisma } from '@/lib/prisma'
 
 /**
@@ -18,10 +19,7 @@ export async function GET(req: NextRequest) {
     take: 20000,
     select: { createdAt: true, action: true, entityType: true, entityId: true, status: true, device: true, ipAddress: true, actor: { select: { name: true, email: true, role: true } } },
   })
-  const cell = (v: unknown) => {
-    const s = v == null ? '' : String(v)
-    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-  }
+  const cell = (v: unknown) => csvCell(v)
   const lines = [
     'When,Who,Email,Role,Action,Record type,Record id,Status,Device,IP',
     ...rows.map((r) => [r.createdAt.toISOString().replace('T', ' ').slice(0, 19), r.actor?.name ?? 'System', r.actor?.email, r.actor?.role, r.action, r.entityType, r.entityId, r.status, r.device, r.ipAddress].map(cell).join(',')),

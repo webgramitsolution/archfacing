@@ -11,6 +11,7 @@
  *   Test 6 — a malformed `meta` blob must never take a published page down.
  */
 
+import './_test-env.mjs'
 import fs from 'node:fs'
 import { PrismaClient } from '@prisma/client'
 import {

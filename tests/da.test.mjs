@@ -7,6 +7,7 @@
  *   even a single paisa may go astray.
  */
 
+import './_test-env.mjs'
 import { PrismaClient } from '@prisma/client'
 import {
   daIdentity, splitRevenue, applyForDa, approveDa,

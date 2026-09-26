@@ -1,7 +1,10 @@
 /**
  * Notification Settings are enforced for every notification the app writes.
- * Run: npx tsx tests/notif-prefs.check.ts
+ * Run: TEST_DATABASE_URL=... npx tsx tests/notif-prefs.check.ts
+ *
+ * Uses its own throwaway @notiftest.dev user; deleted (with its notifications) in finally.
  */
+import './_test-env.mjs'
 import { prisma } from '../src/lib/prisma'
 import { DEFAULT_PREFS } from '../src/lib/notification-prefs'
 
@@ -9,10 +12,12 @@ let fails = 0
 const ok = (c: boolean, m: string) => { console.log(c ? '  ✓' : '  ✗', m); if (!c) fails++ }
 
 async function main() {
-  const user = await prisma.user.findFirst({ where: { deletedAt: null, role: 'PROFESSIONAL' }, select: { id: true, notificationPrefs: true } })
-  if (!user) throw new Error('no professional to test with')
-  const saved = user.notificationPrefs
-  const tag = `notif-check-${Date.now()}`
+  const stamp = Date.now()
+  const user = await prisma.user.create({
+    data: { email: `notif-${stamp}@notiftest.dev`, name: 'Notif Test', role: 'PROFESSIONAL', status: 'ACTIVE', emailVerified: new Date() },
+    select: { id: true },
+  })
+  const tag = `notif-check-${stamp}`
   const count = () => prisma.notification.count({ where: { userId: user.id, title: tag } })
 
   try {
@@ -47,8 +52,8 @@ async function main() {
     await prisma.notification.create({ data: { userId: user.id, type: 'NEW_ENQUIRY', title: tag, body: 'x' } })
     ok((await count()) === 4, 'defaults (no saved prefs) deliver everything')
   } finally {
-    await prisma.notification.deleteMany({ where: { userId: user.id, title: tag } })
-    await prisma.user.update({ where: { id: user.id }, data: { notificationPrefs: (saved ?? null) as never } })
+    await prisma.notification.deleteMany({ where: { userId: user.id } })
+    await prisma.user.deleteMany({ where: { id: user.id, email: { endsWith: '@notiftest.dev' } } })
     await prisma.$disconnect()
   }
 }

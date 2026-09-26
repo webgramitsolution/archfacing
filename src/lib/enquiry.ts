@@ -37,6 +37,14 @@ function distanceKm(
 
 const NEARBY_RADIUS_KM = 50
 
+/**
+ * A seat past its expiry date must not receive leads even if the nightly cron
+ * has not yet flipped it to EXPIRED — the buyer's phone number is at stake.
+ */
+function notExpired(): Prisma.PactWhereInput {
+  return { OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }
+}
+
 export type RoutingResult =
   | {
       routed: true
@@ -74,7 +82,7 @@ export async function findRecipient(
 
   // ─── 1. In the same PIN code ───
   const exact = await prisma.pact.findFirst({
-    where: { pincode, serviceType, subCategory: sub, status: 'ACTIVE' },
+    where: { pincode, serviceType, subCategory: sub, status: 'ACTIVE', ...notExpired() },
     include: { holder: { select: { id: true, name: true, status: true } } },
   })
 
@@ -100,6 +108,7 @@ export async function findRecipient(
       serviceType,
       subCategory: sub,
       status: 'ACTIVE',
+      ...notExpired(),
       pincode: { not: pincode },
       holder: { status: 'ACTIVE' },
     },
@@ -165,7 +174,7 @@ export async function findAllPactHolders(
 
   // §19 PACT validation — seat ACTIVE, holder account ACTIVE, exact match
   const seats = await prisma.pact.findMany({
-    where: { pincode, serviceType, subCategory: sub, status: 'ACTIVE', holder: { status: 'ACTIVE' } },
+    where: { pincode, serviceType, subCategory: sub, status: 'ACTIVE', ...notExpired(), holder: { status: 'ACTIVE' } },
     select: { id: true, holderId: true, holder: { select: { id: true, name: true } } },
     orderBy: { purchasedAt: 'asc' },
     take: 200,

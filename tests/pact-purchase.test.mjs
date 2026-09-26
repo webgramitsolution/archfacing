@@ -7,6 +7,7 @@
  * wiring is checked here too.
  */
 
+import './_test-env.mjs'
 import { PrismaClient } from '@prisma/client'
 import { reservePact, activatePact, checkAvailability } from '../src/lib/pact.ts'
 import { BUSINESS_RULES } from '../src/config/permissions.ts'
@@ -22,14 +23,36 @@ function check(name, ok, extra = '') {
   else { fail++; console.log(`  ❌ ${name} ${extra}`) }
 }
 
+const FIXTURE = { email: { endsWith: '@buytest.dev' } }
+
+// Only this test's own rows are ever removed — PACTs held by @buytest.dev users.
 async function cleanup() {
-  await prisma.pact.deleteMany({ where: { pincode: PIN } })
+  await prisma.pact.deleteMany({ where: { holder: FIXTURE } })
   await prisma.payment.deleteMany({ where: { user: { email: { contains: '@buytest.dev' } } } })
   await prisma.notification.deleteMany({ where: { user: { email: { contains: '@buytest.dev' } } } })
   await prisma.user.deleteMany({ where: { email: { contains: '@buytest.dev' } } })
 }
 
 await cleanup()
+
+// The journey needs the DESIGNI and DESIGNA seats in this PIN empty. Someone
+// else's PACT is never deleted to get there — cleanup() has just removed
+// every fixture PACT, so anything still live here is not ours: stop instead.
+{
+  const squatters = await prisma.pact.findMany({
+    where: {
+      pincode: PIN, serviceType: { in: ['DESIGNI', 'DESIGNA'] },
+      status: { in: ['RESERVED', 'ACTIVE'] },
+    },
+    select: { id: true, serviceType: true, status: true },
+  })
+  if (squatters.length) {
+    console.error(`\n✋ PIN ${PIN} holds ${squatters.length} non-test PACT(s); this test needs those seats empty and will not delete them:`)
+    for (const q of squatters) console.error(`   ${q.id} ${q.serviceType} ${q.status}`)
+    await prisma.$disconnect()
+    process.exit(1)
+  }
+}
 
 console.log('\n── Payment provider ──')
 

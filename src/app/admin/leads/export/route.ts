@@ -1,5 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { requirePermission } from '@/lib/guard'
+import { csvCell } from '@/lib/csv'
 import { listLeads } from '@/lib/admin-leads'
 
 /**
@@ -13,9 +14,7 @@ const MAX_ROWS = 5000
 const PAGE = 200
 
 function cell(v: string | number | null | undefined): string {
-  if (v == null) return ''
-  const s = String(v)
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+  return csvCell(v)
 }
 
 export async function GET(req: NextRequest) {

@@ -8,6 +8,7 @@
  *   with an RM Employee.
  */
 
+import './_test-env.mjs'
 import { PrismaClient } from '@prisma/client'
 import { findRecipient, createEnquiry, respondToEnquiry, assignEnquiry } from '../src/lib/enquiry.ts'
 

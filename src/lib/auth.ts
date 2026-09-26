@@ -31,6 +31,9 @@ declare module 'next-auth' {
   }
 }
 
+/** Roles that may only use the email + password provider. */
+const PASSWORD_ONLY_ROLES: Role[] = ['SUPER_ADMIN', 'ADMIN', 'ADMIN_SELLER', 'RM_EMPLOYEE']
+
 export const { handlers, signIn, signOut, auth } = NextAuth({
   session: { strategy: 'jwt', maxAge: 30 * 24 * 60 * 60 },
   pages: { signIn: '/login', error: '/login' },
@@ -102,6 +105,9 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const user = await prisma.user.findUnique({ where: { email } })
         if (!user || user.status === 'BANNED' || user.deletedAt) return null
         if (user.status === 'SUSPENDED') return null
+        // Staff sign in with email + password only (see the header). An email
+        // code alone must never open an admin, seller or RM account.
+        if (PASSWORD_ONLY_ROLES.includes(user.role)) return null
 
         // ⚠️ Do NOT change status here. PENDING_VERIFICATION means ArchFacing
         // has yet to check the user's qualification/COA (§3.1.8.1) — verifying

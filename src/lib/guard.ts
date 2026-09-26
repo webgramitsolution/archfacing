@@ -39,6 +39,50 @@ export async function requireAuth() {
   return { ...session.user, role: fresh.role, status: fresh.status, name: fresh.name, profilePhoto: fresh.profilePhoto ?? fresh.logo ?? null, permissions: fresh.permissions }
 }
 
+/**
+ * The signed-in user, re-read from the DB — or null.
+ *
+ * For actions that must answer a signed-out visitor with `{ signIn: true }`
+ * rather than a redirect. Same freshness rule as requireAuth(): a banned,
+ * suspended or deleted account counts as signed out, and the role is the DB's,
+ * not the JWT's.
+ */
+export async function activeSessionUser() {
+  const session = await auth()
+  if (!session?.user?.id) return null
+  const fresh = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { id: true, role: true, status: true, deletedAt: true },
+  })
+  if (!fresh || fresh.deletedAt || fresh.status === 'BANNED' || fresh.status === 'SUSPENDED') return null
+  return { id: fresh.id, role: fresh.role, status: fresh.status, email: session.user.email }
+}
+
+const STAFF_TARGET_ROLES: Role[] = ['ADMIN', 'ADMIN_SELLER', 'RM_EMPLOYEE']
+
+/**
+ * May `actor` change `target`'s account (status, password, verification)?
+ * Returns the refusal message, or null when allowed. The same rules the bulk
+ * bar on the admin lists enforces:
+ *   · a SUPER_ADMIN is never touched, and nobody changes their own account;
+ *   · staff accounts change only by a SUPER_ADMIN — except RM employees, which
+ *     a holder of `admin:employees` may manage when `allowRmByGrant` is set.
+ */
+export function accountChangeRefusal(
+  actor: { id: string; role: Role },
+  target: { id: string; role: Role },
+  opts: { allowRmByGrant?: boolean } = {}
+): string | null {
+  if (target.id === actor.id) return 'You cannot change your own account here.'
+  if (target.role === 'SUPER_ADMIN') return 'A Super Admin account cannot be changed.'
+  if (STAFF_TARGET_ROLES.includes(target.role) && actor.role !== 'SUPER_ADMIN') {
+    if (!(opts.allowRmByGrant && target.role === 'RM_EMPLOYEE')) {
+      return 'Only a Super Admin can change a staff account.'
+    }
+  }
+  return null
+}
+
 /** This permission is required — otherwise send the user back to their dashboard */
 export async function requirePermission(permission: Permission) {
   const user = await requireAuth()
@@ -75,8 +119,14 @@ export async function requireRole(...roles: Role[]) {
  */
 export async function assertPermission(permission: Permission) {
   const session = await auth()
-  if (!session?.user) throw new Error('UNAUTHENTICATED')
-  if (session.user.status !== 'ACTIVE') throw new Error('ACCOUNT_INACTIVE')
-  if (!can(session.user.role, permission)) throw new Error('FORBIDDEN')
-  return session.user
+  if (!session?.user?.id) throw new Error('UNAUTHENTICATED')
+  // Role, status and grants from the DB — the JWT can be up to 30 days stale
+  const fresh = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { role: true, status: true, deletedAt: true, permissions: true },
+  })
+  if (!fresh || fresh.deletedAt) throw new Error('UNAUTHENTICATED')
+  if (fresh.status !== 'ACTIVE') throw new Error('ACCOUNT_INACTIVE')
+  if (!can(fresh.role, permission, fresh.permissions)) throw new Error('FORBIDDEN')
+  return { ...session.user, role: fresh.role, status: fresh.status, permissions: fresh.permissions }
 }

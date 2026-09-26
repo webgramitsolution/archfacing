@@ -2,7 +2,7 @@
 
 import { revalidatePath } from 'next/cache'
 
-import { auth } from '@/lib/auth'
+import { activeSessionUser } from '@/lib/guard'
 import {
   deleteReview,
   recordView,
@@ -22,10 +22,10 @@ import {
 export type SaveState = { ok: boolean; saved?: boolean; signIn?: boolean; error?: string }
 
 export async function toggleSavedAction(postId: string, path?: string): Promise<SaveState> {
-  const session = await auth()
-  if (!session?.user?.id) return { ok: false, signIn: true }
+  const user = await activeSessionUser()
+  if (!user) return { ok: false, signIn: true }
 
-  const saved = await toggleSaved(session.user.id, postId)
+  const saved = await toggleSaved(user.id, postId)
   if (path) revalidatePath(path)
   revalidatePath('/dashboard/client/saved')
   revalidatePath('/dashboard/client')
@@ -40,11 +40,11 @@ export async function toggleSavedAction(postId: string, path?: string): Promise<
  * here must never surface to the reader or break the page they asked for.
  */
 export async function recordViewAction(postId: string): Promise<void> {
-  const session = await auth()
-  if (!session?.user?.id) return
+  const user = await activeSessionUser()
+  if (!user) return
 
   try {
-    await recordView(session.user.id, postId)
+    await recordView(user.id, postId)
   } catch {
     // A missing post or a race on the unique pair is not worth a page error.
   }
@@ -56,8 +56,8 @@ export async function saveReviewAction(
   _prev: ReviewState | null,
   formData: FormData
 ): Promise<ReviewState> {
-  const session = await auth()
-  if (!session?.user?.id) return { ok: false, signIn: true }
+  const user = await activeSessionUser()
+  if (!user) return { ok: false, signIn: true }
 
   const postId = String(formData.get('postId') ?? '')
   const rating = Number(formData.get('rating') ?? 0)
@@ -66,7 +66,7 @@ export async function saveReviewAction(
   if (!postId) return { ok: false, error: 'Which item is this review for?' }
 
   try {
-    await upsertReview({ authorId: session.user.id, postId, rating, body })
+    await upsertReview({ authorId: user.id, postId, rating, body })
   } catch (e) {
     if (e instanceof ReviewError) return { ok: false, error: e.message }
     throw e
@@ -78,10 +78,10 @@ export async function saveReviewAction(
 }
 
 export async function deleteReviewAction(postId: string): Promise<{ ok: boolean }> {
-  const session = await auth()
-  if (!session?.user?.id) return { ok: false }
+  const user = await activeSessionUser()
+  if (!user) return { ok: false }
 
-  await deleteReview(session.user.id, postId)
+  await deleteReview(user.id, postId)
   revalidatePath('/dashboard/client/reviews')
   revalidatePath('/dashboard/client')
   return { ok: true }

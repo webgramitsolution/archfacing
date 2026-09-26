@@ -1,6 +1,7 @@
 import type { NextRequest } from 'next/server'
 import type { Role } from '@prisma/client'
 import { requirePermission } from '@/lib/guard'
+import { csvCell } from '@/lib/csv'
 import { prisma } from '@/lib/prisma'
 
 /**
@@ -39,7 +40,7 @@ export async function GET(req: NextRequest) {
   })
   const cell = (v: unknown) => {
     const s = v == null ? '' : v instanceof Date ? v.toISOString().slice(0, 10) : String(v)
-    return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
+    return csvCell(s)
   }
   const head = ['Name', 'Email', 'Mobile', 'Role', 'Status', 'Company / Firm', 'Type', 'GST / COA', 'Verification', 'City', 'State', 'PIN', 'Employee ID', 'Department', 'Designation', 'Joined', 'Last sign-in']
   const lines = [head.join(','), ...rows.map((u) => [

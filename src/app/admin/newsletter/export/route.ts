@@ -1,4 +1,5 @@
 import { requirePermission } from '@/lib/guard'
+import { csvCell } from '@/lib/csv'
 import { prisma } from '@/lib/prisma'
 
 /** GET /admin/newsletter/export — active subscribers as CSV, for the mailing tool. */
@@ -11,7 +12,7 @@ export async function GET() {
     orderBy: { createdAt: 'desc' },
     select: { email: true, source: true, createdAt: true, confirmedAt: true },
   })
-  const cell = (v: string) => (/[",\n\r]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v)
+  const cell = (v: string) => csvCell(v)
   const lines = ['Email,Source,Subscribed,Confirmed', ...rows.map((r) =>
     [r.email, r.source, r.createdAt.toISOString().slice(0, 10), r.confirmedAt ? r.confirmedAt.toISOString().slice(0, 10) : ''].map(cell).join(','))]
   const today = new Date().toISOString().slice(0, 10)

@@ -50,7 +50,9 @@ export function EmployeeRowActions({
           title={suspended ? 'Reactivate' : 'Suspend'}
           onClick={() =>
             start(async () => {
-              await toggleEmployeeAction(id, !suspended)
+              setNote(null)
+              const r = await toggleEmployeeAction(id, !suspended)
+              if (!r.ok) setNote(r.error ?? 'Could not change this account')
             })
           }
           className={`rounded-lg border p-1.5 transition-colors disabled:opacity-50 ${
