@@ -255,7 +255,7 @@ export function HeroCard({ card }: { card: (typeof HERO_CARDS)[number] }) {
   return (
     <Link
       href={card.href}
-      className="group flex min-h-[118px] w-full shrink-0 items-stretch overflow-hidden rounded-[16px] border-2 border-white bg-white shadow-[0_4px_14px_rgba(0,0,0,0.14)] transition-transform hover:-translate-y-0.5 md:h-[118px]"
+      className="group flex min-h-[118px] w-full shrink-0 items-stretch overflow-hidden rounded-[16px] border-2 border-white bg-white shadow-[0_4px_14px_rgba(0,0,0,0.14)] transition-transform hover:-translate-y-0.5 md:h-[118px] lg:h-auto lg:min-h-0 lg:flex-1"
     >
       {/* Image — flush to the card's left edge, full height, rounded via the
           card's left corners (the card's overflow-hidden clips it). */}

@@ -163,9 +163,11 @@ export default async function HomePage() {
             ══════════════════════════════════════════════ */}
         <div className="container-af">
           <HeroSlider images={HERO_BANNERS}>
-            <div className="relative z-10 mx-auto max-w-[1240px] md:h-[400px] lg:h-[460px]">
+            {/* Full width of the hero — no centred max-width box, so the copy
+                and the cards sit the same distance from each edge at any width. */}
+            <div className="relative z-10 w-full md:h-[400px] lg:h-[460px]">
               {/* LEFT CONTENT — max 500px, never runs under the card column */}
-              <div className="max-w-[520px] px-5 py-10 md:absolute md:left-7 md:top-1/2 md:max-w-[380px] md:-translate-y-1/2 md:px-0 md:py-0 lg:left-10 lg:max-w-[540px]">
+              <div className="max-w-[520px] px-5 py-10 md:absolute md:left-5 md:top-1/2 md:max-w-[360px] md:-translate-y-1/2 md:px-0 md:py-0 lg:left-10 lg:max-w-[540px]">
                 <p className="mb-4 text-[9px] font-semibold uppercase tracking-[0.18em] text-brand md:text-[10px]">
                   India&apos;s Most Trusted Architecture Ecosystem
                 </p>
@@ -174,7 +176,7 @@ export default async function HomePage() {
                   <br />
                   <span className="text-brand">Spaces Into Possibilities.</span>
                 </h1>
-                <p className="mt-5 max-w-md text-[13px] leading-relaxed text-white/90">
+                <p className="mt-5 max-w-md text-[13px] leading-relaxed text-white/90 md:max-w-[330px] lg:max-w-md">
                   The one-stop platform for Architects, Designers, Manufacturers,
                   Suppliers &amp; Professionals to build a stronger industry together.
                 </p>
@@ -209,7 +211,7 @@ export default async function HomePage() {
 
               {/* RIGHT CARDS — tablet & desktop: absolute, vertically centered
                   (scaled to 320px on the tablet, exact 380px on the computer) */}
-              <div className="hidden md:absolute md:right-[18px] md:top-1/2 md:flex md:w-[310px] md:-translate-y-1/2 md:flex-col md:gap-[10px] lg:w-[380px]">
+              <div className="hidden md:absolute md:right-5 md:top-1/2 lg:right-10 lg:bottom-[14px] lg:top-[14px] lg:translate-y-0 md:flex md:w-[300px] md:-translate-y-1/2 md:flex-col md:gap-[10px] lg:w-[380px]">
                 {HERO_CARDS.map((card) => (
                   <HeroCard key={card.title} card={card} />
                 ))}
