@@ -177,7 +177,7 @@ export function MobileNavDrawer({
                         const key = item.label + '/' + g.name
                         const gOpen = openGroup === key
                         return (
-                          <li key={key}>
+                          <li key={key} className="border-b border-line-soft last:border-0">
                             <div className="flex items-center">
                               <Link href={g.href} onClick={() => setOpen(false)} className="flex-1 px-2 py-2 text-[13px] font-medium text-ink-2">
                                 {g.name}

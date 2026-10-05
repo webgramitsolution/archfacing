@@ -5,6 +5,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import type { MenuItem } from '@/config/nav'
 import { Icon } from './ui'
+import { LinkPending } from './link-pending'
 import { cn } from '@/lib/utils'
 
 /**
@@ -32,9 +33,10 @@ export function MegaMenu({ item }: { item: MenuItem }) {
     return (
       <Link
         href={item.href}
-        className="block whitespace-nowrap px-0.5 py-3 text-[11px] md:text-[10.5px] lg:text-[12px] xl:text-[13.5px] font-medium text-ink-2 transition-colors hover:text-brand"
+        className="flex items-center gap-1 whitespace-nowrap px-0.5 py-3 text-[11px] md:text-[10.5px] lg:text-[12px] xl:text-[13.5px] font-medium text-ink-2 transition-colors hover:text-brand"
       >
         {item.label}
+        <LinkPending />
       </Link>
     )
   }
@@ -59,6 +61,7 @@ export function MegaMenu({ item }: { item: MenuItem }) {
         )}
       >
         {item.label}
+        <LinkPending />
         <svg
           viewBox="0 0 10 6"
           aria-hidden

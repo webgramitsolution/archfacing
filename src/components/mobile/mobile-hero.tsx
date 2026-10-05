@@ -38,12 +38,23 @@ export function MobileHero({ images, children }: { images: string[]; children: R
             priority={i === 0}
             sizes="100vw"
             unoptimized
-            className={cn('object-cover object-[70%_center] transition-opacity duration-700', i === index ? 'opacity-100' : 'opacity-0')}
+            className={cn('object-cover object-center transition-opacity duration-700', i === index ? 'opacity-100' : 'opacity-0')}
           />
         ))}
-        {/* the left-side wash that keeps the white type readable */}
-        <span className="absolute inset-0 bg-gradient-to-r from-navy/90 via-navy/55 to-navy/10" />
-        <span className="absolute inset-x-0 top-0 h-24 bg-gradient-to-b from-navy/70 to-transparent" />
+        {/*
+          Dark only behind the copy on the left — the ramp reaches zero by ~62%
+          so the building on the right stays clear — plus a soft top and bottom
+          wash for the header icons and the button.
+        */}
+        <span
+          className="absolute inset-0"
+          style={{
+            backgroundImage:
+              'linear-gradient(to right, rgba(17,24,39,0.9) 0%, rgba(17,24,39,0.62) 28%, rgba(17,24,39,0.2) 48%, rgba(17,24,39,0) 62%)',
+          }}
+        />
+        <span className="absolute inset-x-0 top-0 h-32 bg-gradient-to-b from-navy/90 via-navy/50 to-transparent" />
+        <span className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-navy/80 to-transparent" />
       </div>
 
       {children}

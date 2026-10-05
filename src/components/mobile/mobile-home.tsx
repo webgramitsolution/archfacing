@@ -5,7 +5,7 @@ import { LOGO_URL } from '@/components/logo'
 import { photoSrc } from '@/components/projects'
 import { VerifiedTick } from '@/components/verified-badge'
 import { SaveToggle } from '@/components/save-button'
-import { INDUSTRIES, PRODUCT_CARDS } from '@/components/home'
+import { INDUSTRIES, PRODUCT_CARDS, ARTISTRY_CARDS } from '@/components/home'
 import { unsplash } from '@/config/content-media'
 import { PROJECT_CATEGORIES } from '@/config/taxonomy'
 import { placeLine, projectMeta, type ProjectRow } from '@/lib/projects'
@@ -34,6 +34,7 @@ export function MobileHome({
   categoryCount,
   rating,
   saved,
+  prizePool,
   nav,
   user,
   unread,
@@ -48,6 +49,8 @@ export function MobileHome({
   categoryCount: (group?: string) => number
   rating: Record<string, { avg: number; count: number }>
   saved: Set<string>
+  /** Live competition prize pool for the Design Challenge banner (null = none). */
+  prizePool: number | null
   nav: DrawerNavItem[]
   user: DrawerUser
   unread: number
@@ -61,67 +64,58 @@ export function MobileHome({
     <div className="bg-white md:hidden">
       {/* ═══════════ hero ═══════════ */}
       <MobileHero images={heroImages}>
-        <div className="px-4 pb-[70px]" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 10px)' }}>
-          {/* header row */}
-          <div className="flex items-center gap-1.5">
-            <MobileNavDrawer items={nav} user={user} tone="light" className="-ml-2" />
+        <div className="flex min-h-[430px] flex-col px-4 pb-8" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 10px)' }}>
+          {/* header row — logo · inline search · bell · menu */}
+          <div className="flex items-center gap-2">
             <Link href="/" aria-label="ArchFacing — home" className="shrink-0">
-              {/* the logo sits on a small white plate so it reads on the photograph */}
-              <span className="flex rounded-md bg-white/95 px-1.5 py-0.5">
-                <Image src={LOGO_URL} alt="ArchFacing" width={60} height={34} priority className="object-contain" />
-              </span>
+              <Image src={LOGO_URL} alt="ArchFacing" width={58} height={33} priority className="object-contain" />
             </Link>
-            <span className="ml-auto flex items-center gap-1">
-              <Link href="/projects" aria-label="Search" className="flex h-10 w-10 items-center justify-center rounded-full text-white">
-                <svg viewBox="0 0 24 24" aria-hidden className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
-              </Link>
-              <Link
-                href={signedIn ? '/dashboard/notifications' : '/login?next=%2Fdashboard%2Fnotifications'}
-                aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
-                className="relative flex h-10 w-10 items-center justify-center rounded-full text-white"
-              >
-                <svg viewBox="0 0 24 24" aria-hidden className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 01-3.4 0" /></svg>
-                {unread > 0 && (
-                  <span className="tabular absolute right-1 top-1 flex h-[17px] min-w-[17px] items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold text-white">
-                    {unread > 9 ? '9+' : unread}
-                  </span>
-                )}
-              </Link>
-              <Link
-                href={user ? user.dashboardHref : '/login'}
-                aria-label={user ? 'Your dashboard' : 'Sign in'}
-                className="relative ml-0.5 flex h-9 w-9 items-center justify-center overflow-hidden rounded-full bg-white/15 text-[14px] font-bold text-white ring-2 ring-white/80"
-              >
-                {user?.photo ? (
-                  <Image src={user.photo} alt="" fill sizes="36px" unoptimized className="object-cover" />
-                ) : user ? (
-                  user.name.trim().charAt(0).toUpperCase()
-                ) : (
-                  <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" /></svg>
-                )}
-              </Link>
-            </span>
+
+            <Link
+              href="/projects"
+              className="flex h-9 min-w-0 flex-1 items-center gap-2 rounded-full bg-white/15 px-3 text-white/85 ring-1 ring-white/25 backdrop-blur-sm"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4 shrink-0" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+              <span className="truncate text-[12.5px]">Search projects, products…</span>
+            </Link>
+
+            <Link
+              href={signedIn ? '/dashboard/notifications' : '/login?next=%2Fdashboard%2Fnotifications'}
+              aria-label={unread ? `Notifications, ${unread} unread` : 'Notifications'}
+              className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-white"
+            >
+              <svg viewBox="0 0 24 24" aria-hidden className="h-[22px] w-[22px]" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 01-3.4 0" /></svg>
+              {unread > 0 && (
+                <span className="tabular absolute right-0.5 top-0.5 flex h-[16px] min-w-[16px] items-center justify-center rounded-full bg-brand px-1 text-[10px] font-bold text-white">
+                  {unread > 9 ? '9+' : unread}
+                </span>
+              )}
+            </Link>
+
+            <MobileNavDrawer items={nav} user={user} tone="light" className="shrink-0 -mr-1" />
           </div>
 
-          {/* copy */}
-          <p className="mt-6 text-[11px] font-medium uppercase leading-[1.55] tracking-[0.06em] text-white/90">
-            <span className="text-brand">India’s</span> most trusted
-            <br />
-            architecture <span className="text-brand">ecosystem</span>
-          </p>
-          <h1 className="mt-3 font-display text-[29px] font-light leading-[1.16] tracking-[-0.01em] text-white">
-            Where ideas
-            <br />
-            take shape.
-            <br />
-            <span className="text-brand">Build</span> better.
-            <br />
-            Together.
-          </h1>
-          <Link href="/projects" className="mt-5 inline-flex items-center gap-2 rounded-lg bg-brand px-4 py-2.5 text-[13.5px] font-semibold text-white shadow-[0_8px_18px_-6px_rgba(249,115,22,.6)]">
-            Explore Projects
-            <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
-          </Link>
+          {/* copy — vertically centred in the space below the header */}
+          <div className="my-auto">
+            <p className="text-[11px] font-medium uppercase leading-[1.55] tracking-[0.06em] text-white/90">
+              <span className="text-brand">India’s</span> most trusted
+              <br />
+              architecture <span className="text-brand">ecosystem</span>
+            </p>
+            <h1 className="mt-3 font-display text-[29px] font-light leading-[1.16] tracking-[-0.01em] text-white">
+              Where ideas
+              <br />
+              take shape.
+              <br />
+              <span className="text-brand">Build</span> better.
+              <br />
+              Together.
+            </h1>
+            <Link href="/projects" className="mt-5 inline-flex items-center gap-2 rounded-lg border border-white bg-transparent px-4 py-2.5 text-[13.5px] font-semibold text-white transition-colors hover:bg-white/10">
+              Explore Projects
+              <svg viewBox="0 0 24 24" aria-hidden className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+            </Link>
+          </div>
         </div>
       </MobileHero>
 
@@ -141,27 +135,12 @@ export function MobileHome({
           ))}
         </ul>
 
-        {/* marketplace intelligence */}
-        <section className="-mx-1 mt-5 rounded-[18px] bg-admin-bg px-2.5 pb-4 pt-3.5 text-white">
-          <div className="px-1"><SectionHead title="Marketplace Intelligence" href="/projects" dark /></div>
-          <ul lang="en" className="mt-3 grid grid-cols-6 gap-1">
-            {INTEL.map((t) => (
-              <li key={t.label}>
-                <Link href={t.href} className="flex flex-col items-center gap-1.5">
-                  <span className="flex h-10 w-full items-center justify-center rounded-xl bg-white/[0.06]">{t.icon}</span>
-                  <span className="w-full text-center text-[9px] font-medium leading-[1.25] text-white/90 [hyphens:auto]">{t.label}</span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </section>
-
         {/* explore by industry */}
         <section className="mt-6">
           <SectionHead title="Explore by Industry" href="/projects" />
-          <SnapRail label="Industries" itemClassName="w-[23.5%]" dots={false} className="mt-3">
+          <SnapRail label="Industries" itemClassName="w-[30%]" dots={false} className="mt-3">
             {INDUSTRIES.map((ind) => (
-              <Link key={ind.slug} href={`/projects?category=${ind.slug}`} className="relative block aspect-[94/100] overflow-hidden rounded-[14px] bg-navy shadow-card">
+              <Link key={ind.slug} href={`/projects?category=${ind.slug}`} className="relative block aspect-[4/3] overflow-hidden rounded-[14px] bg-navy shadow-card">
                 <Image
                   src={industryImages[ind.slug] ?? unsplash(ind.photo, { w: 320, h: 340, q: 70 })}
                   alt=""
@@ -206,30 +185,30 @@ export function MobileHome({
         {projects.length > 0 && (
           <section className="mt-6">
             <SectionHead title="Featured Projects" href="/projects" />
-            <SnapRail label="Featured projects" itemClassName="w-[31%]" className="mt-3">
+            <SnapRail label="Featured projects" itemClassName="w-[43%]" className="mt-3">
               {projects.map((p, i) => {
                 const m = projectMeta(p.meta)
                 const place = p.city ?? placeLine(p.city, p.state)
                 return (
-                  <div key={p.id} className="relative h-full overflow-hidden rounded-[14px] border border-line bg-white shadow-card">
+                  <div key={p.id} className="relative h-full overflow-hidden rounded-[16px] border border-line bg-white shadow-card">
                     <Link href={`/projects/${p.slug}`} className="block">
-                      <span className="relative block aspect-[114/72] bg-paper-3">
+                      <span className="relative block aspect-square bg-paper-3">
                         <Image
-                          src={featuredImages[i] ?? photoSrc(m.coverImage, { w: 360, h: 230 })}
+                          src={featuredImages[i] ?? photoSrc(m.coverImage, { w: 400, h: 500 })}
                           alt=""
                           fill
-                          sizes="30vw"
+                          sizes="43vw"
                           unoptimized={Boolean(featuredImages[i])}
                           className="object-cover"
                         />
-                        <span className={cn('absolute left-1.5 top-1.5 rounded-[5px] px-1.5 py-0.5 text-[8.5px] font-semibold', TAG_TONE[p.category] ?? 'bg-navy text-white')}>
+                        <span className={cn('absolute left-2 top-2 rounded-full px-2 py-0.5 text-[9px] font-semibold', TAG_TONE[p.category] ?? 'bg-navy text-white')}>
                           {tagFor(p.category, m.categoryLabel)}
                         </span>
                       </span>
-                      <span className="block px-2 pb-2 pt-1.5">
-                        <span className="block truncate text-[11.5px] font-semibold text-ink">{p.title}</span>
+                      <span className="block px-2.5 pb-2.5 pt-2">
+                        <span className="block truncate text-[12px] font-bold text-ink">{p.title}</span>
                         {place && (
-                          <span className="mt-0.5 flex items-center gap-1 text-[9.5px] text-ink-3">
+                          <span className="mt-1 flex items-center gap-1 text-[10px] text-ink-3">
                             <PinIcon />
                             <span className="truncate">{place}</span>
                           </span>
@@ -241,7 +220,7 @@ export function MobileHome({
                       initialSaved={saved.has(p.id)}
                       path="/"
                       noun="project"
-                      className="absolute right-1.5 top-1.5 flex h-6 w-6 items-center justify-center rounded-full text-white [filter:drop-shadow(0_1px_2px_rgba(0,0,0,.45))]"
+                      className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white text-ink-2 shadow-card"
                       savedClassName="!text-brand [&_svg]:fill-current"
                       icon={<HeartIcon />}
                     />
@@ -301,6 +280,102 @@ export function MobileHome({
             </SnapRail>
           </section>
         )}
+
+        {/* showcase your talent — design challenge (per reference) */}
+        <section className="relative isolate mt-6 overflow-hidden rounded-[16px] bg-navy p-4 text-white">
+          <Image
+            src="https://ik.imagekit.io/archfacingb2b/comptetion.png"
+            alt=""
+            fill
+            sizes="100vw"
+            unoptimized
+            className="-z-10 object-cover object-center"
+          />
+          {/* Dark only behind the copy on the left; clears by ~62% so the
+              building on the right stays visible. */}
+          <span
+            aria-hidden
+            className="absolute inset-0 -z-10"
+            style={{
+              backgroundImage:
+                'linear-gradient(to right, rgba(9,20,45,0.92) 0%, rgba(9,20,45,0.7) 34%, rgba(9,20,45,0.25) 52%, rgba(9,20,45,0) 64%)',
+            }}
+          />
+          {/* a soft wash in the top-right corner, behind the prize chip */}
+          <span
+            aria-hidden
+            className="absolute inset-0 -z-10"
+            style={{ backgroundImage: 'radial-gradient(ellipse 60% 55% at top right, rgba(9,20,45,0.7) 0%, rgba(9,20,45,0) 60%)' }}
+          />
+          <p className="text-[9px] font-bold uppercase tracking-[0.12em] text-brand">ArchFacing Design Challenge 2026</p>
+
+          {/* prize pool chip — trophy + figure, top-right */}
+          <div className="mt-2.5 flex items-start justify-between gap-3">
+            <h2 className="font-display text-[16px] font-medium leading-[1.25] tracking-[-0.01em] text-white [&>span]:block [&>span]:whitespace-nowrap">
+              <span>Showcase Your Talent.</span>
+              <span>Win Recognition.</span>
+            </h2>
+            <div className="flex shrink-0 items-center gap-1.5 rounded-[10px] border border-white/12 bg-navy/70 px-2 py-1.5 backdrop-blur-sm">
+              <span aria-hidden className="text-[16px] leading-none">🏆</span>
+              <span className="text-left">
+                <span className="block text-[7px] uppercase tracking-wide text-white/55">Prize Pool</span>
+                <span className="tabular block font-display text-[12px] font-bold leading-tight text-white">
+                  {prizePool ? `₹${prizePool.toLocaleString('en-IN')}` : 'TBA'}
+                </span>
+                <span className="block text-[7px] text-white/55">+ More Rewards</span>
+              </span>
+            </div>
+          </div>
+
+          <ul className="mt-3 flex max-w-[66%] flex-col gap-1.5">
+            {['Open for Architects, Designers & Students', 'Exciting Prizes & Global Exposure'].map((t) => (
+              <li key={t} className="flex items-start gap-1.5 text-[10px] leading-tight text-white/85">
+                <svg viewBox="0 0 24 24" aria-hidden className="mt-0.5 h-3 w-3 shrink-0 text-brand" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                <span className="min-w-0">{t}</span>
+              </li>
+            ))}
+          </ul>
+
+          <Link href="/competition" className="mt-3.5 inline-flex rounded-lg bg-brand px-4 py-2 text-[11.5px] font-semibold text-white">
+            Participate Now
+          </Link>
+        </section>
+
+        {/* artistry, culture & heritage */}
+        <section className="mt-6">
+          <SectionHead title="Artistry, Culture & Heritage" href="/artistry" />
+          <SnapRail label="Artistry, culture and heritage" itemClassName="w-[31%]" dots={false} className="mt-3">
+            {ARTISTRY_CARDS.slice(0, 3).map((a) => (
+              <Link
+                key={a.label}
+                href={a.sub ? `/artistry?category=${a.category}&sub=${a.sub}` : `/artistry?category=${a.category}`}
+                className="block h-full overflow-hidden rounded-[14px] border border-line bg-white shadow-card"
+              >
+                <span className="relative block aspect-[4/3] bg-paper-3">
+                  <Image src={unsplash(a.photo, { w: 360, h: 270, q: 70 })} alt="" fill sizes="31vw" className="object-cover" />
+                </span>
+                <span className="block px-1.5 py-2 text-center">
+                  <span className="line-clamp-2 text-[10.5px] font-semibold leading-[1.25] text-ink">{a.label}</span>
+                </span>
+              </Link>
+            ))}
+          </SnapRail>
+        </section>
+
+        {/* marketplace intelligence — moved below artistry (client request) */}
+        <section className="-mx-1 mt-6 rounded-[18px] bg-admin-bg px-2.5 pb-4 pt-3.5 text-white">
+          <div className="px-1"><SectionHead title="Marketplace Intelligence" href="/projects" dark /></div>
+          <ul lang="en" className="mt-3 grid grid-cols-6 gap-1">
+            {INTEL.map((t) => (
+              <li key={t.label}>
+                <Link href={t.href} className="flex flex-col items-center gap-1.5">
+                  <span className="flex h-10 w-full items-center justify-center rounded-xl bg-white/[0.06]">{t.icon}</span>
+                  <span className="w-full text-center text-[9px] font-medium leading-[1.25] text-white/90 [hyphens:auto]">{t.label}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
 
         {/* join */}
         <section className="mt-6 flex items-center gap-2 overflow-hidden rounded-[16px] bg-navy-soft px-4 py-4">

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import Image from 'next/image'
 import Link from 'next/link'
 import { cn } from '@/lib/utils'
 import { Icon, type IconName } from './ui'
@@ -16,12 +17,17 @@ import { SignOutButton } from './sign-out-button'
 
 export function AccountMenu({
   name,
+  photo,
+  messagesHref,
   role,
   dashboardHref,
   isAdmin,
   isSeller,
 }: {
   name: string
+  /** The member's own profile photo (or logo); the initial when unset. */
+  photo: string | null
+  messagesHref: string
   role: string
   dashboardHref: string
   isAdmin: boolean
@@ -64,8 +70,8 @@ export function AccountMenu({
         aria-expanded={open}
         className="flex items-center gap-2.5"
       >
-        <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand to-[#EA580C] text-[13px] font-bold text-white shadow-sm ring-2 ring-white">
-          {initial}
+        <span className="relative flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-brand to-[#EA580C] text-[13px] font-bold text-white shadow-sm ring-2 ring-white">
+          {photo ? <Image src={photo} alt="" fill sizes="36px" unoptimized className="object-cover" /> : initial}
         </span>
         <span className="hidden leading-tight lg:block">
           <span className="block text-[13px] font-semibold text-ink">{name}</span>
@@ -87,8 +93,8 @@ export function AccountMenu({
       >
         {/* account header */}
         <div className="flex items-center gap-3 rounded-xl bg-gradient-to-br from-paper-2 to-paper-3 p-3">
-          <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand to-[#EA580C] text-[15px] font-bold text-white shadow">
-            {initial}
+          <span className="relative flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-brand to-[#EA580C] text-[15px] font-bold text-white shadow">
+            {photo ? <Image src={photo} alt="" fill sizes="44px" unoptimized className="object-cover" /> : initial}
           </span>
           <span className="min-w-0">
             <span className="block truncate text-[13.5px] font-bold text-ink">{name}</span>
@@ -108,6 +114,7 @@ export function AccountMenu({
               Seller Studio
             </MenuItem>
           )}
+          <MenuItem href={messagesHref} icon="mail" tint="#2563EB" bg="#EAF2FF">Messages</MenuItem>
           <MenuItem href="/dashboard/notifications" icon="bell" tint="#0D9488" bg="#E7F7F3">Notifications</MenuItem>
           <MenuItem href="/legal/need-help" icon="help" tint="#64748B" bg="#F1F5F9">Help &amp; Support</MenuItem>
         </div>

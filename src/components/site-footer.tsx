@@ -194,7 +194,7 @@ export async function SiteFooter({ variant = 'default' }: { variant?: 'default' 
 
       {/* Phones: room for the floating app bar, then the bar itself. */}
       <div aria-hidden className="h-[88px] md:hidden" />
-      <MobileTabBar signedIn={phone.signedIn} dashboardHref={phone.dashboardHref} unread={phone.unread} />
+      <MobileTabBar signedIn={phone.signedIn} dashboardHref={phone.dashboardHref} leadsHref={phone.leadsHref} unread={phone.unread} />
     </footer>
   )
 }

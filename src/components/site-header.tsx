@@ -78,13 +78,18 @@ export async function SiteHeader({
           <div className="ml-auto flex shrink-0 items-center gap-4">
             {user ? (
               <>
-                <IconLink href={dashboardPathFor(user.role)} label="Dashboard" icon="grid" />
-                <IconLink href={messagesPathFor(user.role)} label="Messages" icon="mail" />
+                {/* Same row as the signed-out header (client rule) — only
+                    Notifications and the avatar are added. Dashboard, Messages
+                    and Help live in the avatar's dropdown. */}
+                <IconLink href="/products" label="Product" icon="box" />
+                <IconLink href="/projects" label="Project" icon="grid" />
+                <IconLink href="/merchandise" label="Merchandise" icon="bag" />
                 <IconLink href="/dashboard/notifications" label="Notifications" icon="bell" badge={unread} />
-                <HeaderHelpCart />
 
                 <AccountMenu
-                  name={user.name ?? 'Account'}
+                  name={phone.user?.name ?? user.name ?? 'Account'}
+                  photo={phone.user?.photo ?? null}
+                  messagesHref={messagesPathFor(user.role)}
                   role={user.role}
                   dashboardHref={dashboardPathFor(user.role)}
                   isAdmin={user.role === 'SUPER_ADMIN' || user.role === 'ADMIN'}

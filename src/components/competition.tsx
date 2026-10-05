@@ -592,11 +592,19 @@ function HighlightCell({ value, label }: { value: string; label: string }) {
 
 export function ShowcaseBand() {
   return (
-    <section className="rounded-card bg-navy px-6 py-10 text-center shadow-card md:px-10 md:py-12">
+    <section className="relative isolate overflow-hidden rounded-card bg-navy px-6 py-10 text-center shadow-card md:px-10 md:py-12">
+      <Image
+        src="https://ik.imagekit.io/archfacingb2b/desing%20association.png"
+        alt=""
+        fill
+        sizes="100vw"
+        unoptimized
+        className="-z-10 object-cover"
+      />
       <h2 className="font-display text-[24px] font-bold leading-tight tracking-tight text-white md:text-[30px]">
         Ready to Showcase Your Talent?
       </h2>
-      <p className="mx-auto mt-3 max-w-xl text-[14.5px] leading-relaxed text-white/65">
+      <p className="mx-auto mt-3 max-w-xl text-[14.5px] leading-relaxed text-white/75">
         Every competition is judged blind by a panel of practising architects and
         designers. Enter one, and let the work speak for itself.
       </p>

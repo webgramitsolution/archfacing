@@ -195,8 +195,12 @@ export function Rail({
     <ul
       tabIndex={0}
       aria-label={label}
-      className="-mx-[15px] flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain
-                 scroll-smooth px-[15px] pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+      // No edge-to-edge breakout here — this only ever renders inside the
+      // `hidden md:block` desktop/tablet <main>, so cancelling the
+      // container's own gutter just pushed the cards past the page's
+      // left/right margin while every other section on the page kept it.
+      className="flex snap-x snap-mandatory gap-4 overflow-x-auto overscroll-x-contain
+                 scroll-smooth pb-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
     >
       {children}
     </ul>
@@ -246,30 +250,33 @@ export function RailArrows({
  * (no gap), then the text + an orange arrow near the right edge.
  */
 export const HERO_CARDS: { title: string; body: string; href: string; image: string }[] = [
-  { title: 'Explore Projects', body: 'Discover stunning architecture & real-world projects', href: '/projects', image: 'https://ik.imagekit.io/archfacing/header-demo-01.webp?updatedAt=1784017125672' },
-  { title: 'Shop Products', body: 'Wide range of premium building materials & products', href: '/products', image: 'https://ik.imagekit.io/archfacing/AdobeStock_866670044-scaled.jpg?updatedAt=1784017266569' },
-  { title: 'Find Professionals', body: 'Connect with verified architects & designers near you', href: '/designers-associates', image: 'https://ik.imagekit.io/archfacing/surfside.webp?updatedAt=1784017396658' },
+  { title: 'Explore Projects', body: 'Discover stunning architecture & real-world projects', href: '/projects', image: 'https://ik.imagekit.io/archfacingb2b/home%20page%203card/Explore%20image.png' },
+  { title: 'Shop Products', body: 'Wide range of premium building materials & products', href: '/products', image: 'https://ik.imagekit.io/archfacingb2b/home%20page%203card/Shop%20product.png' },
+  { title: 'Find Professionals', body: 'Connect with verified architects & designers near you', href: '/designers-associates', image: 'https://ik.imagekit.io/archfacingb2b/home%20page%203card/Find%20Professionals.png' },
 ]
 
-export function HeroCard({ card }: { card: (typeof HERO_CARDS)[number] }) {
+export function HeroCard({ card, index }: { card: (typeof HERO_CARDS)[number]; index?: number }) {
   return (
     <Link
       href={card.href}
-      className="group flex min-h-[118px] w-full shrink-0 items-stretch overflow-hidden rounded-[16px] border-2 border-white bg-white shadow-[0_4px_14px_rgba(0,0,0,0.14)] transition-transform hover:-translate-y-0.5 md:h-[118px] lg:h-auto lg:min-h-0 lg:flex-1"
+      className="group flex min-h-0 w-full flex-1 items-stretch overflow-hidden rounded-[12px] border-2 border-white bg-white shadow-[0_4px_14px_rgba(0,0,0,0.14)] transition-transform hover:-translate-y-0.5"
     >
-      {/* Image — flush to the card's left edge, full height, rounded via the
-          card's left corners (the card's overflow-hidden clips it). */}
-      <span className="relative w-[128px] shrink-0 self-stretch overflow-hidden bg-paper-3 lg:w-[145px]">
-        <Image src={card.image} alt="" fill sizes="145px" className="object-cover" />
+      {/* Image — flush to the card's left edge, full height; the card's
+          overflow-hidden rounds its left corners. */}
+      <span className="relative w-[118px] shrink-0 self-stretch overflow-hidden rounded-[10px] bg-paper-3 lg:w-[150px]">
+        <Image src={card.image} alt="" fill sizes="150px" unoptimized className="object-cover" />
+        {index ? (
+          <span className="absolute left-3 top-3 font-display text-[12px] font-semibold text-white [text-shadow:0_1px_3px_rgba(0,0,0,.5)]">
+            {String(index).padStart(2, '0')}
+          </span>
+        ) : null}
       </span>
 
-      {/* Content — heading + description, orange arrow near the edge */}
-      <span className="flex min-w-0 flex-1 items-center gap-2 py-4 pl-4 pr-3">
-        <span className="min-w-0 flex-1">
-          <span className="block font-display text-[15.5px] font-semibold leading-[1.2] text-[#092143] lg:text-[16px]">{card.title}</span>
-          <span className="mt-1 block text-[12px] leading-[1.4] text-[#667085] line-clamp-2">{card.body}</span>
-        </span>
-        <Glyph name="right" className="h-6 w-6 shrink-0 text-[#FF6B00] transition-transform group-hover:translate-x-0.5" />
+      {/* Content — title, description, orange arrow in the bottom-right corner */}
+      <span className="relative min-w-0 flex-1 py-3 pl-4 pr-3 lg:py-4 lg:pl-[18px] lg:pr-4">
+        <span className="block font-display text-[14.5px] font-semibold leading-[1.25] text-[#092143] lg:text-[16px]">{card.title}</span>
+        <span className="mt-1.5 block pr-6 text-[11.5px] leading-[1.5] text-[#667085] line-clamp-3 lg:mt-2 lg:text-[12.5px]">{card.body}</span>
+        <Glyph name="right" className="absolute bottom-3 right-3 h-5 w-5 text-[#FF6B00] transition-transform group-hover:translate-x-0.5 lg:bottom-3.5 lg:right-4" />
       </span>
     </Link>
   )

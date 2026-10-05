@@ -1484,6 +1484,10 @@ model SubscriptionPlan {
   isActive  Boolean @default(true)
   sortOrder Int     @default(0)
 
+  /// Who sees this plan on the membership page. "ALL" = every seller role;
+  /// "CORPORATE" = Corporate accounts only (their own higher-priced tiers).
+  audience String @default("ALL")
+
   subscriptions Subscription[]
 }
 

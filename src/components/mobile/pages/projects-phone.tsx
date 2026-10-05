@@ -12,7 +12,8 @@ import { statValue } from '@/lib/platform-stats'
 import type { CategoryHero } from '@/lib/category-hero'
 import { PROJECT_CATEGORIES } from '@/config/taxonomy'
 import { cn } from '@/lib/utils'
-import { PhoneSelect } from './listing-phone-client'
+import { PhoneSelect, PhoneFilterSheet } from './listing-phone-client'
+import { PhoneCategoryGrid } from '../phone-category-grid'
 
 /**
  * /projects — the phone layout (below md).
@@ -232,103 +233,81 @@ export function ProjectsPhone({
         </div>
       </section>
 
-      {/* ═══ category grid ═══ */}
-      <nav aria-label="Project categories" className="relative -mt-4 rounded-t-[20px] bg-paper-2 px-3 pt-3">
-        <ul className="grid grid-cols-4 overflow-hidden rounded-[10px] border border-line bg-white">
-          <li className="border-b border-r border-line-soft">
-            <Link href={projectsHref({ view: carried.view })} aria-current={!values.category ? 'true' : undefined} className={tile}>
-              <Glyph name="grid" className="h-8 w-8 text-brand" />
-              <span className="mt-2 text-[12px] font-semibold leading-tight text-brand">All Projects</span>
-              <span className="tabular mt-1 text-[10.5px] font-semibold text-brand">{counts.all.toLocaleString('en-IN')}</span>
-            </Link>
-          </li>
-          {CATEGORY_STRIP.map((c, i) => {
-            const on = Boolean(c.slug) && c.slug === values.category
-            const art = CATEGORY_ICON_IMAGES[c.label]
-            const n = c.slug ? (counts[c.slug] ?? 0) : others
-            return (
-              <li key={c.label} className={cn('border-line-soft', (i + 2) % 4 !== 0 && 'border-r', i < 7 && 'border-b')}>
-                <Link
-                  href={projectsHref({ category: c.slug, view: carried.view })}
-                  aria-current={on ? 'true' : undefined}
-                  className={tile}
-                >
-                  {art ? (
-                    <Image src={art} alt="" width={64} height={64} unoptimized className="h-8 w-8 object-contain" />
-                  ) : (
-                    <Glyph name={c.icon} className="h-8 w-8 text-ink-2" />
-                  )}
-                  <span className={cn('mt-2 text-[12px] font-semibold leading-tight', on ? 'text-brand' : 'text-ink')}>{c.label}</span>
-                  <span className={cn('tabular mt-1 text-[10.5px]', on ? 'text-brand' : 'text-ink-3')}>{n.toLocaleString('en-IN')}</span>
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
-      </nav>
+      {/* ═══ category grid — 2 rows, "More Categories" reveals the rest ═══ */}
+      <PhoneCategoryGrid
+        ariaLabel="Project categories"
+        primary={[
+          {
+            key: 'all',
+            href: projectsHref({ view: carried.view }),
+            label: 'All Projects',
+            active: !values.category,
+            icon: <Glyph name="grid" className="h-8 w-8 text-brand" />,
+          },
+          ...CATEGORY_STRIP.filter((c) => c.slug).map((c) => ({
+            key: c.label,
+            href: projectsHref({ category: c.slug, view: carried.view }),
+            label: c.label,
+            active: c.slug === values.category,
+            icon: CATEGORY_ICON_IMAGES[c.label] ? (
+              <Image src={CATEGORY_ICON_IMAGES[c.label]} alt="" width={64} height={64} unoptimized className="h-8 w-8 object-contain" />
+            ) : (
+              <Glyph name={c.icon} className="h-8 w-8 text-ink-2" />
+            ),
+          })),
+        ]}
+        more={PROJECT_CATEGORIES.filter((pc) => !CATEGORY_STRIP.some((c) => c.slug === pc.slug)).map((pc) => ({
+          key: pc.slug,
+          href: projectsHref({ category: pc.slug, view: carried.view }),
+          label: pc.name,
+          active: pc.slug === values.category,
+          icon: <Glyph name="building" className="h-8 w-8 text-ink-2" />,
+        }))}
+      />
 
       <div className="px-3 pb-6">
-        {/* ═══ filters ═══ */}
-        <form id={FORM_ID} method="get" action="/projects" className="mt-5">
-          {values.q && <input type="hidden" name="q" value={values.q} />}
-          {Object.entries(values.hidden).map(([k, v]) => (
-            <input key={k} type="hidden" name={k} value={v} />
-          ))}
-          {list && <input type="hidden" name="view" value="list" />}
+        {/* ═══ filters — sheet button · count · sort ═══ */}
+        <div className="mt-5 flex items-center gap-2">
+          <PhoneFilterSheet
+            basePath="/projects"
+            carried={{
+              q: values.q || undefined,
+              sort: values.sort === 'latest' ? undefined : values.sort,
+              view: list ? 'list' : undefined,
+              ...values.hidden,
+            }}
+            sections={[
+              { key: 'pactArea', label: 'PACT Area', value: values.pactArea, options: cities.map((c) => ({ value: c, label: c })) },
+              { key: 'category', label: 'Category', value: values.category, options: PROJECT_CATEGORIES.map((c) => ({ value: c.slug, label: c.name, count: counts[c.slug] ?? 0 })) },
+              { key: 'state', label: 'Location', value: values.state, options: states.map((s) => ({ value: s, label: s })) },
+            ]}
+          />
 
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-[16px] font-semibold text-ink">Filters</h2>
-            <Link href={list ? '/projects?view=list' : '/projects'} className="text-[13px] font-semibold text-brand">
-              Clear All
-            </Link>
-          </div>
+          <p className="min-w-0 flex-1 text-[12px] text-ink-2">
+            Showing <span className="tabular">{first} - {last}</span> of{' '}
+            <span className="tabular">{total.toLocaleString('en-IN')}</span>
+          </p>
 
-          <div className="mt-3 flex items-center justify-between gap-2">
-            <p className="min-w-0 text-[12px] text-ink-2">
-              Showing <span className="tabular">{first} - {last}</span> of{' '}
-              <span className="tabular">{total.toLocaleString('en-IN')}</span> project{total === 1 ? '' : 's'}
-            </p>
+          {/* Sort stays a plain GET form so it works with the filters applied. */}
+          <form id={FORM_ID} method="get" action="/projects" className="shrink-0">
+            {values.q && <input type="hidden" name="q" value={values.q} />}
+            {values.pactArea && <input type="hidden" name="pactArea" value={values.pactArea} />}
+            {values.category && <input type="hidden" name="category" value={values.category} />}
+            {values.state && <input type="hidden" name="state" value={values.state} />}
+            {Object.entries(values.hidden).map(([k, v]) => (
+              <input key={k} type="hidden" name={k} value={v} />
+            ))}
+            {list && <input type="hidden" name="view" value="list" />}
             <PhoneSelect
               name="sort"
               label={sorts[0].label}
               srLabel="Sort by"
               value={values.sort === 'latest' ? '' : values.sort}
               options={sorts.slice(1)}
-              className="w-[124px] shrink-0"
+              className="w-[124px]"
             />
-          </div>
-
-          <div className="mt-3 grid grid-cols-[1fr_1fr_1fr_auto] gap-1.5">
-            <PhoneSelect
-              name="pactArea"
-              label="PACT Area"
-              value={values.pactArea}
-              options={cities.map((c) => ({ value: c, label: c }))}
-            />
-            <PhoneSelect
-              name="category"
-              label="Category"
-              value={values.category}
-              options={PROJECT_CATEGORIES.map((c) => ({
-                value: c.slug,
-                label: `${c.name} (${counts[c.slug] ?? 0})`,
-              }))}
-            />
-            <PhoneSelect
-              name="state"
-              label="Location"
-              value={values.state}
-              options={states.map((s) => ({ value: s, label: s }))}
-            />
-            <button
-              type="submit"
-              aria-label="Apply filters"
-              className="flex h-10 w-10 items-center justify-center rounded-[10px] border border-line bg-white text-ink-2"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 5h18l-7 8.5V19l-4 2v-7.5z" /></svg>
-            </button>
-          </div>
-        </form>
+          </form>
+        </div>
 
         {/* grid / list */}
         <div className="mt-3 flex gap-2">

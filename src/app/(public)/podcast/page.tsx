@@ -250,17 +250,18 @@ export default async function PodcastPage({
                 <SectionHead title="Explore Podcast Topics" />
 
                 <div className="card p-4">
-                  {/* The tile row scrolls inside itself rather than pushing
-                      the page sideways on a narrow phone. */}
-                  <ul className="flex min-w-0 gap-3 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {/* A wrapping grid so every topic is visible at once — a
+                      fixed-width scroll strip cut the last tiles off the right
+                      of this column. */}
+                  <ul className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-5">
                     {topics.map((t) => {
                       const on = topic === t.slug
                       return (
-                        <li key={t.slug} className="shrink-0">
+                        <li key={t.slug}>
                           <Link
                             href={podcastHref({ topic: on ? undefined : t.slug })}
                             aria-current={on ? 'true' : undefined}
-                            className={`flex h-[92px] w-[104px] flex-col items-center justify-center gap-2 rounded-card border px-2 text-center transition-colors ${
+                            className={`flex h-[92px] w-full flex-col items-center justify-center gap-2 rounded-card border px-2 text-center transition-colors ${
                               on
                                 ? 'border-brand bg-brand-soft text-brand'
                                 : 'border-line bg-paper-2 text-ink-2 hover:border-brand-border hover:text-brand'
@@ -276,11 +277,11 @@ export default async function PodcastPage({
                     })}
 
                     {/* clears the filter */}
-                    <li className="shrink-0">
+                    <li>
                       <Link
                         href={podcastHref({})}
                         aria-current={!topic ? 'true' : undefined}
-                        className={`flex h-[92px] w-[104px] flex-col items-center justify-center gap-2 rounded-card border px-2 text-center transition-colors ${
+                        className={`flex h-[92px] w-full flex-col items-center justify-center gap-2 rounded-card border px-2 text-center transition-colors ${
                           !topic
                             ? 'border-brand bg-brand-soft text-brand'
                             : 'border-line bg-paper-2 text-ink-2 hover:border-brand-border hover:text-brand'

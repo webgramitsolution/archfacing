@@ -32,37 +32,54 @@ export type PlanCardData = {
  * Each plan gets a visual identity by its slug. New slugs fall back to the
  * bronze look, so an admin adding a plan never renders an unstyled card.
  */
+/**
+ * Each tier's visual identity, keyed by slug (reference: Free / Bronze /
+ * Silver / Gold cards). `cardBg` is the soft top-to-bottom wash, `badge` the
+ * circular medal behind the icon, `check` the tick circle, `btn` the
+ * full-width CTA gradient. New slugs fall back to bronze.
+ */
 const THEME: Record<
   string,
-  { icon: IconName; accent: string; softBg: string; ring: string; checkWrap: string }
+  {
+    icon: IconName
+    cardBg: string
+    ring: string
+    badge: string
+    check: string
+    btn: string
+  }
 > = {
   free: {
     icon: 'user',
-    accent: 'text-ink-2',
-    softBg: 'bg-paper',
-    ring: 'border-line',
-    checkWrap: 'bg-paper-3 text-ink-3',
+    cardBg: 'bg-gradient-to-b from-white to-info-soft/40',
+    ring: 'border-info/25',
+    badge: 'bg-info-soft text-info',
+    check: 'bg-info-soft text-info',
+    btn: 'border border-info/40 bg-white text-info hover:bg-info-soft',
   },
   bronze: {
     icon: 'shield',
-    accent: 'text-navy',
-    softBg: 'bg-paper',
-    ring: 'border-line',
-    checkWrap: 'bg-navy-soft text-navy',
+    cardBg: 'bg-gradient-to-b from-white to-brand-soft/50',
+    ring: 'border-brand/25',
+    badge: 'bg-gradient-to-br from-[#E8A06A] to-[#B26A38] text-white',
+    check: 'bg-brand-soft text-brand',
+    btn: 'border-0 bg-gradient-to-r from-brand to-[#EA580C] text-white hover:brightness-105',
   },
   silver: {
-    icon: 'trending',
-    accent: 'text-info',
-    softBg: 'bg-info-soft/50',
+    icon: 'award',
+    cardBg: 'bg-gradient-to-b from-white to-info-soft/50',
     ring: 'border-info',
-    checkWrap: 'bg-info text-white',
+    badge: 'bg-gradient-to-br from-[#AEB7C2] to-[#6B7688] text-white',
+    check: 'bg-info text-white',
+    btn: 'border-0 bg-gradient-to-r from-info to-[#1D4ED8] text-white hover:brightness-105',
   },
   gold: {
     icon: 'trophy',
-    accent: 'text-gold',
-    softBg: 'bg-gold-soft/60',
+    cardBg: 'bg-gradient-to-b from-white to-gold-soft/60',
     ring: 'border-gold-border',
-    checkWrap: 'bg-gold-soft text-gold',
+    badge: 'bg-gradient-to-br from-[#E7C15A] to-[#B8860B] text-white',
+    check: 'bg-gold-soft text-gold',
+    btn: 'border-0 bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-white hover:brightness-105',
   },
 }
 
@@ -199,7 +216,17 @@ export function MembershipView({
       </section>
 
       {/* ═══════════ plan cards ═══════════ */}
-      <section id="plans" className={cn('grid gap-5 md:items-start', plans.length >= 4 ? 'md:grid-cols-4 md:gap-3 lg:gap-5' : 'md:grid-cols-3')}>
+      <section
+        id="plans"
+        className={cn(
+          'grid gap-5 md:items-start',
+          plans.length >= 4
+            ? 'md:grid-cols-4 md:gap-3 lg:gap-5'
+            : plans.length === 2
+              ? 'md:mx-auto md:max-w-3xl md:grid-cols-2'
+              : 'md:grid-cols-3'
+        )}
+      >
         {plans.map((plan) => (
           <PlanCard
             key={plan.id}
@@ -254,7 +281,8 @@ function PlanCard({
   onSelect: () => void
   onConfirm: () => void
 }) {
-  const t = THEME[plan.slug] ?? FALLBACK
+  // Corporate tiers reuse the silver/gold look (slug `corporate-silver` etc.).
+  const t = THEME[plan.slug.replace('corporate-', '')] ?? FALLBACK
   const popular = plan.isPopular
   const monthly = Math.round(plan.price / Math.max(plan.months, 1))
   const free = plan.price === 0
@@ -267,7 +295,8 @@ function PlanCard({
       role={selectable ? 'button' : undefined}
       aria-pressed={selectable ? selected : undefined}
       className={cn(
-        'relative flex h-full flex-col overflow-hidden rounded-card border bg-paper shadow-card transition-all',
+        'relative isolate flex h-full flex-col overflow-hidden rounded-[16px] border shadow-card transition-all',
+        t.cardBg,
         selectable && 'cursor-pointer',
         selected
           ? 'border-2 border-brand shadow-lift ring-2 ring-brand/25'
@@ -275,9 +304,17 @@ function PlanCard({
             ? 'border-2 border-ok/50'
             : popular
               ? 'border-2 border-info shadow-lift md:-mt-3'
-              : cn(t.ring, selectable && 'hover:border-ink-3')
+              : cn('border-2', t.ring, selectable && 'hover:shadow-lift')
       )}
     >
+      {/* Gold's corner flourishes, as the reference draws it. */}
+      {plan.slug.endsWith('gold') && (
+        <>
+          <span aria-hidden className="pointer-events-none absolute -left-10 -top-10 -z-10 h-28 w-28 rounded-full bg-navy/10 blur-xl" />
+          <span aria-hidden className="pointer-events-none absolute -right-10 -top-10 -z-10 h-28 w-28 rounded-full bg-gold/25 blur-xl" />
+        </>
+      )}
+
       {/* selected tick — the unmistakable "this one is picked" mark */}
       {selected && (
         <span className="absolute right-2.5 top-2.5 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-brand text-white shadow-card">
@@ -286,25 +323,20 @@ function PlanCard({
       )}
 
       {popular && (
-        <div className="flex items-center justify-center gap-1.5 bg-info py-2 text-[12px] font-bold uppercase tracking-[0.04em] text-white">
+        <div className="flex items-center justify-center gap-1.5 bg-gradient-to-r from-info to-[#1D4ED8] py-2 text-[12px] font-bold uppercase tracking-[0.06em] text-white">
           <Icon name="award" className="h-4 w-4" />
           Most Popular
         </div>
       )}
 
-      <div className={cn('flex flex-1 flex-col p-6', popular ? 'bg-info-soft/40' : t.softBg)}>
-        {/* icon + name */}
-        <div className="flex items-start gap-3">
-          <span
-            className={cn(
-              'flex h-11 w-11 shrink-0 items-center justify-center rounded-card',
-              popular ? 'bg-info text-white' : plan.slug === 'gold' ? 'bg-gold-soft text-gold' : 'bg-navy-soft text-navy'
-            )}
-          >
-            <Icon name={t.icon} className="h-6 w-6" />
+      <div className="flex flex-1 flex-col p-6">
+        {/* medal + name */}
+        <div className="flex items-center gap-3.5">
+          <span className={cn('flex h-14 w-14 shrink-0 items-center justify-center rounded-full shadow-sm', t.badge)}>
+            <Icon name={t.icon} className="h-7 w-7" />
           </span>
-          <div className="min-w-0 pt-0.5">
-            <h3 className="font-display text-[19px] font-bold leading-tight text-navy">{plan.name}</h3>
+          <div className="min-w-0">
+            <h3 className="font-display text-[22px] font-bold leading-tight text-navy">{plan.name}</h3>
             <p className="mt-0.5 text-[12.5px] leading-snug text-ink-3">{plan.tagline}</p>
           </div>
         </div>
@@ -312,43 +344,61 @@ function PlanCard({
         {/* price */}
         <div className="mt-5">
           <div className="flex items-end gap-1.5">
-            <span className="tabular font-display text-[32px] font-bold leading-none text-navy">{free ? 'Free' : `₹${inr(monthly)}`}</span>
-            {!free && <span className="mb-1 text-[13px] text-ink-3">/month</span>}
+            <span className="tabular font-display text-[40px] font-extrabold leading-none text-navy">{free ? 'Free' : `₹${inr(monthly)}`}</span>
+            {!free && <span className="mb-1.5 text-[14px] text-ink-3">/month</span>}
           </div>
           {free ? (
-            <p className="mt-1.5 text-[12px] text-ink-3">No payment · no PACT</p>
+            <p className="mt-2 text-[12.5px] text-ink-3">No payment · No PACT</p>
           ) : plan.months >= 12 && (
-            <p className="mt-1.5 text-[12px] text-ink-3">
+            <p className="mt-2 text-[12.5px] text-ink-3">
               Billed annually at <span className="tabular font-semibold text-ink-2">₹{inr(plan.price)}</span>
             </p>
           )}
         </div>
 
+        <div className="mt-5 h-px bg-line" />
+
         {/* benefits */}
-        <ul className="mt-5 flex flex-1 flex-col gap-2.5">
-          {plan.benefits.map((b) => (
-            <li key={b} className="flex items-start gap-2.5 text-[13px] leading-snug text-ink-2">
-              <span className={cn('mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full', t.checkWrap)}>
-                <Icon name="check" className="h-3 w-3" />
-              </span>
-              <span className="min-w-0">{b}</span>
-            </li>
-          ))}
+        <ul className="mt-5 flex flex-1 flex-col gap-3">
+          {plan.benefits.map((b) => {
+            // Free lists what it does NOT include ("No PACT territory") — a
+            // muted cross, exactly as the reference draws that one row.
+            const isNegative = free && /^no /i.test(b)
+            return (
+              <li key={b} className="flex items-start gap-2.5 text-[13px] leading-snug text-ink-2">
+                <span
+                  className={cn(
+                    'mt-0.5 flex h-[20px] w-[20px] shrink-0 items-center justify-center rounded-full',
+                    isNegative ? 'bg-paper-3 text-ink-4' : t.check
+                  )}
+                >
+                  {isNegative ? (
+                    <svg viewBox="0 0 24 24" aria-hidden className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round">
+                      <path d="M6 6l12 12M18 6L6 18" />
+                    </svg>
+                  ) : (
+                    <Icon name="check" className="h-3 w-3" />
+                  )}
+                </span>
+                <span className={cn('min-w-0', isNegative && 'text-ink-4')}>{b}</span>
+              </li>
+            )
+          })}
         </ul>
 
         {/* action */}
         <div className="mt-6">
-          {free && !isCurrent ? (
-            <div className="rounded-lg border border-line bg-paper-3 py-2.5 text-center text-[13px] font-medium text-ink-3">
-              Included with every account
-            </div>
-          ) : isCurrent ? (
+          {isCurrent ? (
             <div className="flex flex-col items-center gap-1 rounded-lg border border-ok/40 bg-ok-soft py-2.5 text-[13.5px] font-semibold text-ok">
               <span className="flex items-center gap-1.5">
                 <Icon name="check" className="h-4 w-4" />
                 Current Plan
               </span>
               {expiryDate && !free && <span className="text-[11px] font-medium text-ok/80">Active until {expiryDate}</span>}
+            </div>
+          ) : free ? (
+            <div className="rounded-lg border border-info/40 bg-white py-2.5 text-center text-[13.5px] font-semibold text-info">
+              Included with every account
             </div>
           ) : selected ? (
             <button
@@ -358,7 +408,10 @@ function PlanCard({
                 onConfirm()
               }}
               disabled={pending}
-              className="btn-primary w-full py-2.5"
+              className={cn(
+                'inline-flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-[14px] font-semibold transition-all',
+                t.btn
+              )}
             >
               <Icon name="check" className="h-4 w-4" />
               {pending ? 'Activating…' : 'Confirm & Activate'}
@@ -371,15 +424,12 @@ function PlanCard({
                 onSelect()
               }}
               className={cn(
-                'w-full py-2.5',
-                popular
-                  ? 'btn-primary'
-                  : plan.slug === 'gold'
-                    ? 'btn inline-flex items-center justify-center rounded-lg border border-gold bg-paper text-[14px] font-semibold text-gold transition-colors hover:bg-gold-soft'
-                    : 'btn inline-flex items-center justify-center rounded-lg border border-navy/25 bg-paper text-[14px] font-semibold text-navy transition-colors hover:bg-navy-soft'
+                'inline-flex w-full items-center justify-center gap-2 rounded-lg py-2.5 text-[14px] font-semibold transition-all',
+                t.btn
               )}
             >
-              Choose {plan.name}
+              Get {plan.name} Plan
+              <Icon name="arrow" className="h-4 w-4" />
             </button>
           )}
         </div>

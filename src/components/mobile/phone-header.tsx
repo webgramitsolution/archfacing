@@ -51,9 +51,8 @@ export function PhoneHeader({
       <div className="flex items-center gap-1.5 px-3 pb-1.5 pt-2">
         <MobileNavDrawer items={items} user={user} tone={dark ? 'light' : 'dark'} className="-ml-1" />
         <Link href="/" aria-label="ArchFacing — home" className="shrink-0">
-          <span className={cn('flex rounded-md', dark && 'bg-white/95 px-1.5 py-0.5')}>
-            <Image src={LOGO_URL} alt="ArchFacing" width={dark ? 58 : 66} height={dark ? 33 : 37} priority className="object-contain" />
-          </span>
+          {/* Logo only — no plate behind it on any tone (client request). */}
+          <Image src={LOGO_URL} alt="ArchFacing" width={dark ? 58 : 66} height={dark ? 33 : 37} priority className="object-contain" />
         </Link>
         {options.location && (
           <div className="ml-1 min-w-0 [&_button]:!h-8 [&_button]:!px-2.5 [&_button]:!text-[12px]">

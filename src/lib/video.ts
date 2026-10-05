@@ -71,8 +71,9 @@ export function parseVideoUrl(input: string): ParsedVideo | null {
         videoId,
         url: `https://www.youtube.com/watch?v=${videoId}`,
         embedUrl: `https://www.youtube-nocookie.com/embed/${videoId}`,
-        // hqdefault exists for every video; maxres is sometimes missing
-        thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+        // mqdefault is a true 16:9 frame with no black bars; hqdefault is
+        // 4:3 with letterbox bars that show through the 16:10 card crop.
+        thumbnailUrl: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
       }
     }
   }

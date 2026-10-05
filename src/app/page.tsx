@@ -26,7 +26,6 @@ import {
 } from '@/components/home'
 import { getHomeData, inCount, inRupees } from '@/lib/home'
 import { cn } from '@/lib/utils'
-import { platformStats, statValue } from '@/lib/platform-stats'
 import { groupCount, productCounts, PRODUCT_GROUPS } from '@/lib/products'
 import { ARTICLE_PHOTOS, PROJECT_PHOTOS, unsplash } from '@/config/content-media'
 import { getBrandLogos } from '@/lib/brand-logos'
@@ -85,8 +84,7 @@ export default async function HomePage() {
    * Both used to carry hand-written numbers that disagreed with the live
    * counts printed on /products and /projects.
    */
-  const [stats, productGroupCounts, logos, phone] = await Promise.all([
-    platformStats(),
+  const [productGroupCounts, logos, phone] = await Promise.all([
     productCounts(),
     // Managed from Admin → Website Settings → Trusted Brands.
     getBrandLogos(),
@@ -138,7 +136,7 @@ export default async function HomePage() {
       <SiteHeader hideOnPhone />
 
       <MobileHome
-        heroImages={[FEATURED_IMAGES[1], FEATURED_IMAGES[0], FEATURED_IMAGES[2], FEATURED_IMAGES[3]]}
+        heroImages={['https://ik.imagekit.io/archfacingb2b/slider%202.png']}
         featuredImages={FEATURED_IMAGES}
         industryImages={{
           residential: FEATURED_IMAGES[1],
@@ -151,6 +149,7 @@ export default async function HomePage() {
         categoryCount={cardCount}
         rating={extras.rating}
         saved={extras.saved}
+        prizePool={prizePool}
         nav={drawerItems()}
         user={phone.user}
         unread={phone.unread}
@@ -158,73 +157,56 @@ export default async function HomePage() {
 
       <main className="hidden md:block">
         {/* ══════════════════════════════════════════════
-            §1 — HERO  (exact blueprint geometry: 1240×460, left 690/max-500,
-            right card column 380, cards 380×118, gap 10, right margin 18)
+            §1 — HERO  (client reference: a rounded banner inside the page
+            gutter, copy on the left, three cards stacked down the right,
+            the dots over the photograph)
             ══════════════════════════════════════════════ */}
         <div className="container-af">
           <HeroSlider images={HERO_BANNERS}>
-            {/* Full width of the hero — no centred max-width box, so the copy
-                and the cards sit the same distance from each edge at any width. */}
-            <div className="relative z-10 w-full md:h-[400px] lg:h-[460px]">
-              {/* LEFT CONTENT — max 500px, never runs under the card column */}
-              <div className="max-w-[520px] px-5 py-10 md:absolute md:left-5 md:top-1/2 md:max-w-[360px] md:-translate-y-1/2 md:px-0 md:py-0 lg:left-10 lg:max-w-[540px]">
-                <p className="mb-4 text-[9px] font-semibold uppercase tracking-[0.18em] text-brand md:text-[10px]">
-                  India&apos;s Most Trusted Architecture Ecosystem
+            <div className="relative z-10 w-full md:h-[400px] lg:h-[440px]">
+              {/* LEFT — eyebrow, headline, copy, two buttons */}
+              <div className="md:absolute md:left-6 md:top-1/2 md:max-w-[340px] md:-translate-y-1/2 lg:left-[62px] lg:max-w-[520px] xl:max-w-[640px]">
+                <p className="font-display text-[11px] font-bold uppercase leading-[1.45] tracking-[0.02em] lg:text-[13px]">
+                  <span className="block text-brand">India&apos;s Most Trusted</span>
+                  <span className="flex items-center gap-1.5 text-white">
+                    B2B Marketplace Platform
+                    <span aria-hidden className="w-9 border-t-2 border-dotted border-brand" />
+                  </span>
                 </p>
-                <h1 className="font-display text-[28px] font-medium leading-[1.12] tracking-tight text-white sm:text-[32px] md:whitespace-nowrap md:text-[27px] lg:text-[40px]">
+                <h1 className="mt-4 font-serif text-[26px] font-bold leading-[1.1] tracking-tight text-white md:whitespace-nowrap lg:mt-5 lg:text-[34px] xl:text-[42px]">
                   Ideas Into Spaces.
                   <br />
                   <span className="text-brand">Spaces Into Possibilities.</span>
                 </h1>
-                <p className="mt-5 max-w-md text-[13px] leading-relaxed text-white/90 md:max-w-[330px] lg:max-w-md">
+                <p className="mt-4 max-w-[420px] text-[12.5px] leading-[1.7] text-white/90 lg:mt-5 lg:text-[14px]">
                   The one-stop platform for Architects, Designers, Manufacturers,
                   Suppliers &amp; Professionals to build a stronger industry together.
                 </p>
-                <div className="mt-6 flex gap-2.5">
-                  <Link href="/projects" className="btn-primary shrink-0 px-4 py-2.5 text-[12.5px]">
+                <div className="mt-5 flex gap-2.5 lg:mt-7 lg:gap-4">
+                  <Link
+                    href="/projects"
+                    className="inline-flex h-10 shrink-0 items-center gap-2 rounded-md bg-brand px-3 text-[12px] font-semibold text-white transition-colors hover:bg-brand-hover lg:h-[42px] lg:px-5 lg:text-[13px]"
+                  >
                     Explore Projects
-                    <Glyph name="right" className="h-3.5 w-3.5" />
+                    <Glyph name="right" className="h-4 w-4" />
                   </Link>
-                  <Link href="/register?type=professional" className="btn-on-navy shrink-0 px-4 py-2.5 text-[12.5px]">
+                  <Link
+                    href="/register?type=professional"
+                    className="inline-flex h-10 shrink-0 items-center rounded-md border border-white/85 px-3 text-[12px] font-semibold text-white transition-colors hover:bg-white/10 lg:h-[42px] lg:px-5 lg:text-[13px]"
+                  >
                     Join as a Professional
                   </Link>
                 </div>
-                {/* Trust stats — fills the vertical space and balances the left
-                    column against the card stack on the right */}
-                <div className="mt-7 flex flex-wrap items-center gap-x-5 gap-y-3">
-                  <span className="flex flex-col leading-none">
-                    <span className="font-display text-[19px] font-bold text-white">{statValue(stats.projects)}</span>
-                    <span className="mt-1.5 text-[10.5px] text-white/70">Projects</span>
-                  </span>
-                  <span className="h-8 w-px bg-white/20" />
-                  <span className="flex flex-col leading-none">
-                    <span className="font-display text-[19px] font-bold text-white">{statValue(stats.members)}</span>
-                    <span className="mt-1.5 text-[10.5px] text-white/70">Professionals</span>
-                  </span>
-                  <span className="h-8 w-px bg-white/20" />
-                  <span className="flex flex-col leading-none">
-                    <span className="font-display text-[19px] font-bold text-white">{statValue(stats.pincodes)}</span>
-                    <span className="mt-1.5 text-[10.5px] text-white/70">PIN Codes</span>
-                  </span>
-                </div>
               </div>
 
-              {/* RIGHT CARDS — tablet & desktop: absolute, vertically centered
-                  (scaled to 320px on the tablet, exact 380px on the computer) */}
-              <div className="hidden md:absolute md:right-5 md:top-1/2 lg:right-10 lg:bottom-[14px] lg:top-[14px] lg:translate-y-0 md:flex md:w-[300px] md:-translate-y-1/2 md:flex-col md:gap-[10px] lg:w-[380px]">
-                {HERO_CARDS.map((card) => (
-                  <HeroCard key={card.title} card={card} />
+              {/* RIGHT — three cards filling the banner's height */}
+              <div className="hidden md:absolute md:inset-y-4 md:right-4 md:flex md:w-[300px] md:flex-col md:gap-2.5 lg:inset-y-[18px] lg:right-[18px] lg:w-[370px]">
+                {HERO_CARDS.map((card, i) => (
+                  <HeroCard key={card.title} card={card} index={i + 1} />
                 ))}
               </div>
             </div>
           </HeroSlider>
-
-          {/* MOBILE CARDS — a separate stacked layout below the hero on phones */}
-          <div className="mt-3 flex flex-col gap-[10px] md:hidden">
-            {HERO_CARDS.map((card) => (
-              <HeroCard key={card.title} card={card} />
-            ))}
-          </div>
         </div>
 
         {/* ══════════════════════════════════════════════

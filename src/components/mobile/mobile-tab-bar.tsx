@@ -12,10 +12,13 @@ import { cn } from '@/lib/utils'
 export function MobileTabBar({
   signedIn,
   dashboardHref,
+  leadsHref,
   unread,
 }: {
   signedIn: boolean
   dashboardHref: string
+  /** The signed-in member's leads / enquiries page — the raised centre button. */
+  leadsHref: string
   unread: number
 }) {
   const pathname = usePathname()
@@ -38,20 +41,33 @@ export function MobileTabBar({
   return (
     <nav
       aria-label="App"
-      className="fixed inset-x-0 bottom-0 z-[60] px-2.5 md:hidden"
-      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)' }}
+      className="fixed inset-x-0 bottom-0 z-[60] md:hidden"
     >
-      <div className="relative grid grid-cols-5 items-end rounded-[22px] border border-line bg-white px-1 pb-2 pt-2 shadow-lift">
+      {/* Flush to the bottom edge — full width, only the top corners rounded. */}
+      <div
+        className="relative grid grid-cols-5 items-end rounded-t-[22px] border-x-0 border-b-0 border-t border-line bg-white px-1 pt-2 shadow-lift"
+        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 8px)' }}
+      >
         {tabs.slice(0, 2).map(({ key, ...t }) => <Tab key={key} {...t} />)}
 
-        {/* Post — the raised orange button */}
-        <Link href={gate('/dashboard/postings')} className="flex flex-col items-center" aria-label="Post">
-          <span className="-mt-7 flex h-[52px] w-[52px] items-center justify-center rounded-full bg-brand text-white shadow-[0_8px_18px_-4px_rgba(249,115,22,.55)] ring-4 ring-white">
-            <svg viewBox="0 0 24 24" aria-hidden className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-              <path d="M12 5v14M5 12h14" />
-            </svg>
+        {/* Leads — the raised orange button; this is where a member's leads land */}
+        <Link href={gate(leadsHref)} className="flex flex-col items-center" aria-label="Leads">
+          <span className="relative -mt-7 flex h-[52px] w-[52px] items-center justify-center">
+            {/* wave — a faint ring rippling outward */}
+            <span aria-hidden className="absolute inset-0 rounded-full border border-brand/50 motion-safe:animate-ping [animation-duration:2.4s]" />
+            {/* running shine — a light sweeping around the border */}
+            <span
+              aria-hidden
+              className="absolute -inset-[3px] rounded-full motion-safe:animate-spin [animation-duration:3s]"
+              style={{ background: 'conic-gradient(from 0deg, transparent 0deg, rgba(255,255,255,0.95) 45deg, transparent 100deg, transparent 360deg)' }}
+            />
+            <span className="relative flex h-[52px] w-[52px] items-center justify-center rounded-full bg-brand text-white shadow-[0_8px_18px_-4px_rgba(249,115,22,.55)] ring-4 ring-white">
+              <svg viewBox="0 0 24 24" aria-hidden className="h-6 w-6" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 11l18-7-7 18-2.5-7.5z" />
+              </svg>
+            </span>
           </span>
-          <span className="mt-1 text-[11px] font-medium text-ink">Post</span>
+          <span className="mt-1 text-[11px] font-medium text-ink">Leads</span>
         </Link>
 
         {tabs.slice(2).map(({ key, ...t }) => <Tab key={key} {...t} />)}

@@ -17,7 +17,8 @@ export default async function MembershipPlansPage() {
   const user = await requireAuth()
 
   const [plansRaw, activeSub] = await Promise.all([
-    subscriptionPlans(),
+    // Corporate accounts see their own higher-priced Silver + Gold tiers.
+    subscriptionPlans(user.role),
     prisma.subscription.findFirst({
       where: { userId: user.id, status: 'ACTIVE', expiresAt: { gte: new Date() } },
       orderBy: { expiresAt: 'desc' },

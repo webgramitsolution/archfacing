@@ -94,10 +94,17 @@ export async function activePlanName(userId: string): Promise<string | null> {
   return m?.planName ?? null
 }
 
-/** The subscription plans a seller can buy — Bronze / Silver / Gold. */
-export async function subscriptionPlans() {
+/**
+ * The subscription plans a seller can buy.
+ *
+ * Corporate accounts get their own higher-priced Silver + Gold tiers
+ * (`audience = 'CORPORATE'`); every other role sees the standard
+ * Free / Bronze / Silver / Gold (`audience = 'ALL'`). Pass no role — e.g. the
+ * public compare table — to get the standard set.
+ */
+export async function subscriptionPlans(role?: string) {
   return prisma.subscriptionPlan.findMany({
-    where: { isActive: true },
+    where: { isActive: true, audience: role === 'CORPORATE' ? 'CORPORATE' : 'ALL' },
     orderBy: [{ sortOrder: 'asc' }, { price: 'asc' }],
   })
 }

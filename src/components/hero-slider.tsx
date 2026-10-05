@@ -8,7 +8,7 @@ import { cn } from '@/lib/utils'
  * The home hero's background slider.
  *
  * The banner cross-fades between the supplied images on a timer, and the
- * left/right arrows and the dots drive it by hand. The headline, buttons and
+ * dots drive it by hand (no side arrows — client request). The headline, buttons and
  * the three cards are passed in as `children` and sit still on top — only the
  * photograph behind them changes, which is how the reference hero behaves.
  *
@@ -44,7 +44,7 @@ export function HeroSlider({
 
   return (
     <section
-      className="relative isolate overflow-hidden rounded-[16px] bg-navy"
+      className="relative isolate overflow-hidden rounded-[14px] bg-navy"
       aria-roledescription="carousel"
       aria-label="ArchFacing highlights"
       onMouseEnter={() => setPaused(true)}
@@ -73,11 +73,10 @@ export function HeroSlider({
             are shown clean, exactly as the client asked. */}
       </div>
 
-      {/* No side arrows — the dots below are the only slide control (client request). */}
       {children}
 
       {count > 1 && (
-        <div className="absolute inset-x-0 bottom-5 z-20 flex items-center justify-center gap-2">
+        <div className="absolute inset-x-0 bottom-4 z-20 flex items-center justify-center gap-2">
           {images.map((src, i) => (
             <button
               key={src + i}
@@ -86,8 +85,8 @@ export function HeroSlider({
               aria-label={`Go to slide ${i + 1} of ${count}`}
               aria-current={i === index ? 'true' : undefined}
               className={cn(
-                'h-2 rounded-pill transition-all',
-                i === index ? 'w-7 bg-brand' : 'w-2 bg-white/40 hover:bg-white/70'
+                'h-[7px] rounded-pill transition-all',
+                i === index ? 'w-8 bg-brand' : 'w-5 bg-white/85 hover:bg-white'
               )}
             />
           ))}

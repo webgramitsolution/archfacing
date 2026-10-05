@@ -13,7 +13,8 @@ import { statValue } from '@/lib/platform-stats'
 import type { CategoryHero } from '@/lib/category-hero'
 import { PRODUCT_CATEGORIES } from '@/config/taxonomy'
 import { cn, formatINR } from '@/lib/utils'
-import { PhoneSelect } from './listing-phone-client'
+import { PhoneSelect, PhoneFilterSheet } from './listing-phone-client'
+import { PhoneCategoryGrid } from '../phone-category-grid'
 
 /**
  * /products — the phone layout (below md).
@@ -216,7 +217,7 @@ export function ProductsPhone({
           <span className="absolute inset-0 bg-gradient-to-r from-navy/95 via-navy/75 to-navy/30" />
           <span className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-navy/90 to-transparent" />
         </span>
-        <div className="relative px-4 pb-10 pt-5">
+        <div className="relative px-4 pb-10 pt-7">
           <p className="font-display text-[13px] font-semibold uppercase tracking-[0.04em] text-brand">
             {hero?.parent ? `Products · ${hero.parent}` : 'Products'}
           </p>
@@ -256,108 +257,97 @@ export function ProductsPhone({
         </div>
       </section>
 
-      {/* ═══ category grid ═══ */}
-      <nav aria-label="Product categories" className="relative -mt-4 rounded-t-[20px] bg-paper-2 px-3 pt-3">
-        <ul className="grid grid-cols-4 overflow-hidden rounded-[10px] border border-line bg-white">
-          <li className="border-b border-r border-line-soft">
-            <Link href={productsHref({ view: carried.view })} aria-current={!values.group && !values.category ? 'true' : undefined} className={tile}>
-              <PGlyph name="grid" className="h-8 w-8 text-brand" />
-              <span className="mt-2 text-[12px] font-semibold leading-tight text-brand">All Products</span>
-              <span className="tabular mt-1 text-[10.5px] text-brand">{counts.all.toLocaleString('en-IN')}</span>
-            </Link>
-          </li>
-          {PRODUCT_GROUPS.map((g, i) => {
-            const on = g.value === values.group
-            const art = GROUP_ICON_IMAGES[g.value]
-            return (
-              <li key={g.value} className={cn('border-line-soft', (i + 2) % 4 !== 0 && 'border-r', i < 7 && 'border-b')}>
-                <Link
-                  href={productsHref({ group: g.categories || g.subs ? g.value : undefined, view: carried.view })}
-                  aria-current={on ? 'true' : undefined}
-                  className={tile}
-                >
-                  {art ? (
-                    <Image src={art} alt="" width={64} height={64} unoptimized className="h-8 w-8 object-contain" />
-                  ) : (
-                    <PGlyph name={GROUP_ICONS[g.value] ?? 'box'} className="h-8 w-8 text-ink-2" />
-                  )}
-                  <span className={cn('mt-2 text-[12px] font-semibold leading-tight', on ? 'text-brand' : 'text-ink')}>{g.label}</span>
-                  <span className={cn('tabular mt-1 text-[10.5px]', on ? 'text-brand' : 'text-ink-3')}>
-                    {groupCount(g, counts).toLocaleString('en-IN')}
-                  </span>
-                </Link>
-              </li>
-            )
-          })}
-        </ul>
-      </nav>
+      {/* ═══ category grid — 2 rows, "More Categories" reveals the rest ═══ */}
+      <PhoneCategoryGrid
+        ariaLabel="Product categories"
+        primary={[
+          {
+            key: 'all',
+            href: productsHref({ view: carried.view }),
+            label: 'All Products',
+            active: !values.group && !values.category,
+            icon: <PGlyph name="grid" className="h-8 w-8 text-brand" />,
+          },
+          ...PRODUCT_GROUPS.filter((g) => g.value !== 'more').map((g) => ({
+            key: g.value,
+            href: productsHref({ group: g.categories || g.subs ? g.value : undefined, view: carried.view }),
+            label: g.label,
+            active: g.value === values.group,
+            icon: GROUP_ICON_IMAGES[g.value] ? (
+              <Image src={GROUP_ICON_IMAGES[g.value]} alt="" width={64} height={64} unoptimized className="h-8 w-8 object-contain" />
+            ) : (
+              <PGlyph name={GROUP_ICONS[g.value] ?? 'box'} className="h-8 w-8 text-ink-2" />
+            ),
+          })),
+        ]}
+        more={PRODUCT_CATEGORIES.map((c) => ({
+          key: c.slug,
+          href: productsHref({ category: c.slug, view: carried.view }),
+          label: c.name,
+          active: c.slug === values.category,
+          icon: <PGlyph name="box" className="h-8 w-8 text-ink-2" />,
+        }))}
+      />
 
       <div className="px-3 pb-6">
-        {/* ═══ filters ═══ */}
-        <form id={FORM_ID} method="get" action="/products" className="mt-5">
-          {values.q && <input type="hidden" name="q" value={values.q} />}
-          {values.group && <input type="hidden" name="group" value={values.group} />}
-          {values.sub && <input type="hidden" name="sub" value={values.sub} />}
-          {values.priceMin && <input type="hidden" name="priceMin" value={values.priceMin} />}
-          {values.application && <input type="hidden" name="application" value={values.application} />}
-          {values.colours.map((c) => <input key={c} type="hidden" name="colour" value={c} />)}
-          {values.verified && <input type="hidden" name="verified" value="1" />}
-          {values.original && <input type="hidden" name="original" value="1" />}
-          {values.bmf && <input type="hidden" name="bmf" value="1" />}
-          {list && <input type="hidden" name="view" value="list" />}
+        {/* ═══ filters — sheet button · count · sort ═══ */}
+        <div className="mt-5 flex items-center gap-2">
+          <PhoneFilterSheet
+            basePath="/products"
+            carried={{
+              q: values.q || undefined,
+              group: values.group || undefined,
+              sub: values.sub || undefined,
+              priceMin: values.priceMin || undefined,
+              application: values.application || undefined,
+              colour: values.colours,
+              verified: values.verified ? '1' : undefined,
+              original: values.original ? '1' : undefined,
+              bmf: values.bmf ? '1' : undefined,
+              sort: values.sort === 'latest' ? undefined : values.sort,
+              view: list ? 'list' : undefined,
+            }}
+            sections={[
+              { key: 'category', label: 'Category', value: values.category, options: PRODUCT_CATEGORIES.map((c) => ({ value: c.slug, label: c.name, count: counts.byCategory[c.slug] ?? 0 })) },
+              { key: 'brand', label: 'Brand', value: values.brand, options: facets.brands.map((b) => ({ value: b.slug, label: b.label })) },
+              { key: 'material', label: 'Material', value: values.material, options: facets.materials.map((m) => ({ value: m.slug, label: m.label })) },
+              { key: 'priceMax', label: 'Price', value: values.priceMax, options: priceSteps.map((p) => ({ value: String(p), label: `Under ${formatINR(p)}` })) },
+              { key: 'availability', label: 'Availability', value: values.availability, options: AVAILABILITY_OPTIONS.map((a) => ({ value: a.value, label: a.label })) },
+            ]}
+          />
 
-          <div className="flex items-center justify-between">
-            <h2 className="font-display text-[17px] font-semibold text-ink">Filters</h2>
-            <Link href={list ? '/products?view=list' : '/products'} className="text-[13px] font-semibold text-brand">
-              Clear All
-            </Link>
-          </div>
+          <p className="min-w-0 flex-1 text-[12px] text-ink-2">
+            Showing <span className="tabular">{first} - {last}</span> of{' '}
+            <span className="tabular">{total.toLocaleString('en-IN')}</span>
+          </p>
 
-          <div className="mt-3 grid grid-cols-3 gap-2">
+          {/* Sort stays a plain GET form so it works with the filters applied. */}
+          <form id={FORM_ID} method="get" action="/products" className="shrink-0">
+            {values.q && <input type="hidden" name="q" value={values.q} />}
+            {values.group && <input type="hidden" name="group" value={values.group} />}
+            {values.sub && <input type="hidden" name="sub" value={values.sub} />}
+            {values.category && <input type="hidden" name="category" value={values.category} />}
+            {values.brand && <input type="hidden" name="brand" value={values.brand} />}
+            {values.material && <input type="hidden" name="material" value={values.material} />}
+            {values.priceMax && <input type="hidden" name="priceMax" value={values.priceMax} />}
+            {values.availability && <input type="hidden" name="availability" value={values.availability} />}
+            {values.priceMin && <input type="hidden" name="priceMin" value={values.priceMin} />}
+            {values.application && <input type="hidden" name="application" value={values.application} />}
+            {values.colours.map((c) => <input key={c} type="hidden" name="colour" value={c} />)}
+            {values.verified && <input type="hidden" name="verified" value="1" />}
+            {values.original && <input type="hidden" name="original" value="1" />}
+            {values.bmf && <input type="hidden" name="bmf" value="1" />}
+            {list && <input type="hidden" name="view" value="list" />}
             <PhoneSelect
-              name="category"
-              label="Category"
-              value={values.category}
-              options={PRODUCT_CATEGORIES.map((c) => ({
-                value: c.slug,
-                label: `${c.name} (${counts.byCategory[c.slug] ?? 0})`,
-              }))}
+              name="sort"
+              label={sorts[0].label}
+              srLabel="Sort by"
+              value={values.sort === 'latest' ? '' : values.sort}
+              options={sorts.slice(1)}
+              className="w-[128px]"
             />
-            <PhoneSelect
-              name="brand"
-              label="Brand"
-              value={values.brand}
-              options={facets.brands.map((b) => ({ value: b.slug, label: b.label }))}
-            />
-            <PhoneSelect
-              name="priceMax"
-              label="Price"
-              value={values.priceMax}
-              options={priceSteps.map((p) => ({ value: String(p), label: `Under ${formatINR(p)}` }))}
-            />
-          </div>
-          <div className="mt-2 grid grid-cols-[1fr_1fr_auto] gap-2">
-            <PhoneSelect
-              name="material"
-              label="Material"
-              value={values.material}
-              options={facets.materials.map((m) => ({ value: m.slug, label: m.label }))}
-            />
-            <PhoneSelect
-              name="availability"
-              label="Availability"
-              value={values.availability}
-              options={AVAILABILITY_OPTIONS.map((a) => ({ value: a.value, label: a.label }))}
-            />
-            <button
-              type="submit"
-              aria-label="Apply filters"
-              className="flex h-10 w-12 items-center justify-center rounded-[10px] border border-line bg-white text-ink-2"
-            >
-              <svg viewBox="0 0 24 24" aria-hidden className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></svg>
-            </button>
-          </div>
-        </form>
+          </form>
+        </div>
 
         {/* grid / list */}
         <div className="mt-3 flex gap-2">
@@ -378,23 +368,6 @@ export function ProductsPhone({
               </Link>
             )
           })}
-        </div>
-
-        {/* results bar */}
-        <div className="mt-4 flex items-center justify-between gap-2">
-          <p className="min-w-0 text-[12px] text-ink-2">
-            Showing <span className="tabular">{first} - {last}</span> of{' '}
-            <span className="tabular">{total.toLocaleString('en-IN')}</span> product{total === 1 ? '' : 's'}
-          </p>
-          <PhoneSelect
-            name="sort"
-            form={FORM_ID}
-            label={sorts[0].label}
-            srLabel="Sort by"
-            value={values.sort === 'latest' ? '' : values.sort}
-            options={sorts.slice(1)}
-            className="w-[128px] shrink-0"
-          />
         </div>
 
         {/* cards */}

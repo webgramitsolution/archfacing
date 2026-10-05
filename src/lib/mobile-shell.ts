@@ -29,11 +29,22 @@ export function drawerItems(): DrawerNavItem[] {
   })
 }
 
+/** Where each role's leads / enquiries live — the phone tab bar's centre button. */
+const LEADS_BY_ROLE: Record<string, string> = {
+  PROFESSIONAL: '/dashboard/professional/enquiries',
+  CONSULTANT: '/dashboard/consultant/enquiries',
+  BMF: '/dashboard/bmf/enquiries',
+  CORPORATE: '/dashboard/corporate/enquiries',
+  EMPLOYEE: '/dashboard/employee/leads',
+  ADMIN: '/admin/leads',
+  SUPER_ADMIN: '/admin/leads',
+}
+
 /** Who is looking, for the phone header, drawer and tab bar. */
-export async function mobileSession(): Promise<{ user: DrawerUser; unread: number; signedIn: boolean; dashboardHref: string }> {
+export async function mobileSession(): Promise<{ user: DrawerUser; unread: number; signedIn: boolean; dashboardHref: string; leadsHref: string }> {
   const session = await auth()
   const u = session?.user
-  if (!u?.id) return { user: null, unread: 0, signedIn: false, dashboardHref: '/login' }
+  if (!u?.id) return { user: null, unread: 0, signedIn: false, dashboardHref: '/login', leadsHref: '/login' }
   const [row, unread] = await Promise.all([
     prisma.user.findUnique({ where: { id: u.id }, select: { profilePhoto: true, logo: true, name: true } }),
     prisma.notification.count({ where: { userId: u.id, isRead: false } }),
@@ -44,5 +55,6 @@ export async function mobileSession(): Promise<{ user: DrawerUser; unread: numbe
     unread,
     signedIn: true,
     dashboardHref,
+    leadsHref: LEADS_BY_ROLE[u.role] ?? dashboardHref,
   }
 }
